@@ -85,7 +85,7 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
 
             dif = len(intents[i]['links']) - len(set(intents[i]['links']))
             if dif > 0:
-                print('DOUBLECATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i]['Intent-ID'], dif, intents[i]['Intent-Text']))
+                print('DUPLICATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i]['Intent-ID'], dif, intents[i]['Intent-Text']))
             intents[i]['answers_plain'] = '\n\n'.join((a['content_plain'] for a in intents[i]['answers']))
     elif scraped_questions_jsonl is not None:
         questions = load_jl(scraped_questions_jsonl, key='url')
