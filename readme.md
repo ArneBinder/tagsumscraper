@@ -21,4 +21,4 @@ h.create_sql_inserts_questions()
 h.create_sql_inserts_answers()
 ```
 
-NOTE: `adjust_tables.sql` has to be executed before the other sql files. Otherwise smileys etc will cause errors.
+*NOTE*: `adjust_tables.sql` has to be executed before the other sql files. Otherwise smileys etc will cause errors.

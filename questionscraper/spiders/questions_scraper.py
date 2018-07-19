@@ -94,7 +94,7 @@ def process_message_view(message, response):
 
 def parse_question(response):
     q = response.css('.lia-thread-topic')
-    assert len(q) == 1, 'unexpected number of questions: %i for url: %s' % (len(q), response.url)
+    assert len(q) == 1, 'unexpected number of questions: %i for url: %s' % (len(q), response.request.url)
     return process_message_view(q[0], response)
 
 
@@ -120,28 +120,18 @@ class QuestionsSpider(scrapy.Spider):
 
     def start_requests(self):
         intent_file = getattr(self, 'intent_file', None)
-        if intent_file is not None:
-            logging.info('load %s from file: %s' % (QUESTION_PREFIX, intent_file))
-            intents = get_intents_from_tsv(intent_file)
-            #urls_ = [intent['Similar_Question_Links'] for intent in intents]
-            #urls = [item for sublist in urls_ for item in sublist]
-            urls = flatten([intent[QUESTION_PREFIX] for intent in intents])
-            #intents_backup_fn = 'intents_questions.json'
-            dir = Path(intent_file).parent
-            intents_backup_fn = (dir / 'intents.json').resolve()
-            logging.info('backup intents to %s' % intents_backup_fn)
-            with open(intents_backup_fn, 'w') as intents_out:
-                json.dump(intents, intents_out)
-        else:
-            logging.warning('NO intent_file SET. USE DUMMY URLS.')
-            # dummy urls
-            urls = [
-                'https://telekomhilft.telekom.de/t5/Vertrag-Rechnung/Bankverbindung-aendern/m-p/2788270',
-                'https://telekomhilft.telekom.de/t5/Telefonie-Internet/Internet-ist-viel-zu-langsam/m-p/2694936',
-                'https://telekomhilft.telekom.de/t5/Telefonie-Internet/Nach-grossflaechiger-Stoerung-keine-volle-DSL-Synchronisation-mehr/td-p/3358103',
-                # image
-                'https://telekomhilft.telekom.de/t5/Vertrag-Rechnung/Kundennummer-Festnetz/m-p/3002171'
-            ]
+        assert intent_file is not None, 'no intent_file set. Please specify a intent_file via scrapy parameters: "-a intent_file=PATH_TO_INTENT_FILE"'
+
+        logging.info('load %s from file: %s' % (QUESTION_PREFIX, intent_file))
+        intents = get_intents_from_tsv(intent_file)
+        urls = flatten([intent['links'] for intent in intents])
+        dir = Path(intent_file).parent
+        intents_backup_fn = (dir / 'intents.jl').resolve()
+        logging.info('backup intents to %s' % intents_backup_fn)
+        with open(intents_backup_fn, 'w') as intents_out:
+            #json.dump(intents, intents_out)
+            intents_out.writelines(json.dumps(intent)+'\n' for intent in intents)
+
         results = []
         logging.info('crawl %d urls ...' % len(urls))
         for url in urls:
@@ -178,12 +168,13 @@ class AnswersSpider(scrapy.Spider):
 
         logging.info('load %s from file: %s' % (ANSWER_PREFIX, intent_file))
         intents = get_intents_from_tsv(intent_file)
-        urls = flatten([intent[ANSWER_PREFIX] for intent in intents])
+        urls = flatten([intent['links'] for intent in intents])
         dir = Path(intent_file).parent
-        intents_backup_fn = (dir / 'intents.json').resolve()
+        intents_backup_fn = (dir / 'intents.jl').resolve()
         logging.info('backup intents to %s' % intents_backup_fn)
         with open(intents_backup_fn, 'w') as intents_out:
-            json.dump(intents, intents_out)
+            #json.dump(intents, intents_out)
+            intents_out.writelines(json.dumps(intent) + '\n' for intent in intents)
 
         results = []
         logging.info('crawl %d urls ...' % len(urls))
