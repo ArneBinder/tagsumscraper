@@ -86,12 +86,12 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
             dif = len(intents[i]['links']) - len(set(intents[i]['links']))
             if dif > 0:
                 print('DUPLICATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i]['Intent-ID'], dif, intents[i]['Intent-Text']))
-            intents[i]['answers_plain'] = '\n\n'.join((a['content_plain'] for a in intents[i]['answers']))
+            intents[i]['answers_plain'] = '\n\n'.join((a['content_cleaned'] for a in intents[i]['answers'] if not a['has_quote']))
     elif scraped_questions_jsonl is not None:
         questions = load_jl(scraped_questions_jsonl, key='url')
         for i in range(len(intents)):
             intents[i]['questions'] = [questions[url] for url in intents[i]['links'] if url in questions]
-            intents[i]['answers_plain'] = '\n\n'.join(flatten([[a['content_plain'] for a in q['answers']] for q in intents[i]['questions']]))
+            intents[i]['answers_plain'] = '\n\n'.join(flatten([[a['content_cleaned'] for a in q['answers'] if not a['has_quote']] for q in intents[i]['questions']]))
     else:
         raise AssertionError('please provide a question or answer file')
     dump_jl(intents, (Path(intents_jsonl).parent / 'intents_merged.jl').resolve())

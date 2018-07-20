@@ -28,32 +28,32 @@ def process_message_view(message, response):
 
     def serialize_elem(elem):
         NODE_STR = 'text() | br | a | span//img | p | span/text() | span/a | blockquote'
-        plain_elems = elem.xpath(NODE_STR)
+        elems = elem.xpath(NODE_STR)
         result = ''
-        result_plain = ''
-        for e in plain_elems:
+        result_cleaned = ''
+        for e in elems:
             tag_name = e.xpath('name()').extract_first()
             if tag_name is None:
                 text = e.extract()
                 result += text or ''
-                result_plain += text or ''
+                result_cleaned += text or ''
             else:
                 if tag_name == 'br':
                     result += '\n'
-                    result_plain += '\n'
+                    result_cleaned += '\n'
                 elif tag_name == 'a':
                     a_text = e.xpath('text()').extract_first()
                     href = response.urljoin(e.xpath('@href').extract_first())
                     result += '[%s]{%s}' % (a_text, response.urljoin(href))
 
                     if a_text is None:
-                        result_plain += href
+                        result_cleaned += href
                     elif 'user/viewprofilepage/user-id' in href:
-                        result_plain += a_text
+                        result_cleaned += a_text
                     elif len(a_text) > 3 and href.startswith(a_text[:-3]):
-                        result_plain += href
+                        result_cleaned += href
                     else:
-                        result_plain += '%s %s' % (a_text, href)
+                        result_cleaned += '%s %s' % (a_text, href)
 
                 elif tag_name == 'blockquote':
                     blockquote_content = serialize_elem(e)
@@ -61,21 +61,23 @@ def process_message_view(message, response):
                 elif tag_name == 'img':
                     img_src = response.urljoin(e.xpath('@src').extract_first())
                     result += '[%s]{%s}' % (CAPTION_IMAGE, img_src)
-                    result_plain += img_src
+                    result_cleaned += img_src
                 elif tag_name == 'p':
-                    p_content, p_content_plain = serialize_elem(e)
+                    p_content, p_content_cleaned = serialize_elem(e)
                     result += '\n' + p_content
-                    result_plain += '\n' + p_content_plain
+                    result_cleaned += '\n' + p_content_cleaned
                 else:
                     result += '[%s]{%s} ' % (CAPTION_UNKNOWN, e.extract())
-        return result.replace('\u00a0', ' ').strip(), result_plain.replace('\u00a0', ' ').strip()
+        return result.replace('\u00a0', ' ').strip(), result_cleaned.replace('\u00a0', ' ').strip()
 
-    text, text_plain = serialize_elem(message.css('.lia-message-body-content'))
+    text, text_cleaned = serialize_elem(message.css('.lia-message-body-content'))
     result['content'] = text.strip()
-    result['content_plain'] = text_plain.strip()
+    result['content_cleaned'] = text_cleaned.strip()
 
-    result['has_quote'] = any('[%s]' % CAPTION_BLOCKQUOTE in c for c in result['content'])
-    result['has_image'] = any('[%s]' % CAPTION_IMAGE in c for c in result['content'])
+    #result['has_quote'] = any('[%s]' % CAPTION_BLOCKQUOTE in c for c in result['content'])
+    #result['has_image'] = any('[%s]' % CAPTION_IMAGE in c for c in result['content'])
+    result['has_quote'] = '[%s]' % CAPTION_BLOCKQUOTE in result['content']
+    result['has_image'] = '[%s]' % CAPTION_IMAGE in result['content']
 
     result['url'] = response.urljoin(message.css('.lia-message-position-in-thread a::attr(href)').extract_first())
     result['solution_accepted_by'] = message.css('.lia-component-solution-info .solution-accepter > a::text').extract_first()
