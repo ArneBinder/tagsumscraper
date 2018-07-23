@@ -4,9 +4,11 @@ import logging
 import os
 from pathlib import Path
 
-QUESTION_PREFIX = 'Similar_Question_Link'
-ANSWER_PREFIX = 'Answer'
+QUESTION_PREFIX = 'Question_'
+ANSWER_PREFIX = 'Answer_'
 TOPIC_CAPTION = 'Intent-Text'
+INTENT_ID = 'Intent-ID'
+INTENT_TEXT = 'Intent-Text'
 
 
 def flatten(l):
@@ -84,13 +86,17 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
             intents[i]['answers'] = [answers[url] for url in intents[i]['links'] if url in answers]
 
             dif = len(intents[i]['links']) - len(set(intents[i]['links']))
+            intents[i]['links'] = list(set(intents[i]['links']))
             if dif > 0:
-                print('DUPLICATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i]['Intent-ID'], dif, intents[i]['Intent-Text']))
+                print('DUPLICATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i][INTENT_ID], dif, intents[i][INTENT_TEXT]))
             intents[i]['answers_plain'] = '\n\n'.join((a['content_cleaned'] for a in intents[i]['answers'] if not a['has_quote']))
     elif scraped_questions_jsonl is not None:
         questions = load_jl(scraped_questions_jsonl, key='url')
         for i in range(len(intents)):
-            intents[i]['questions'] = [questions[url] for url in intents[i]['links'] if url in questions]
+            dif = len(intents[i]['links']) - len(set(intents[i]['links']))
+            if dif > 0:
+                print('DUPLICATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i][INTENT_ID], dif, intents[i][INTENT_TEXT]))
+            intents[i]['questions'] = [questions[url] for url in set(intents[i]['links']) if url in questions]
             intents[i]['answers_plain'] = '\n\n'.join(flatten([[a['content_cleaned'] for a in q['answers'] if not a['has_quote']] for q in intents[i]['questions']]))
     else:
         raise AssertionError('please provide a question or answer file')
@@ -204,7 +210,7 @@ def calc_stats_questions(intent_file_json='questions/intents.jl', question_file_
         writer.writeheader()
         writer.writerows(intents)
 
-    return intents, questions_dict
+    #return intents, questions_dict
 
 
 def calc_stats_answers(intent_file_jsonl='answers/intents.jl', answer_file_jsonl='answers/scraped.jl'):
@@ -229,4 +235,23 @@ def calc_stats_answers(intent_file_jsonl='answers/intents.jl', answer_file_jsonl
         writer.writeheader()
         writer.writerows(intents)
 
-    return intents, answers_dict
+    #return intents, answers_dict
+
+
+def merge_questions_answers(merged_intents_questions='questions/intents_merged.jl', merged_intents_answers='answers/intents_merged.jl'):
+    intents_questions =load_jl(merged_intents_questions, key=INTENT_ID)
+    intents_answers = load_jl(merged_intents_answers, key=INTENT_ID)
+
+    not_in_intents_answers = set(intents_questions.keys()) - set(intents_answers.keys())
+    if len(not_in_intents_answers) > 0:
+        print('not in intents_answers, but in intents_questions: %s' % str(list(not_in_intents_answers)))
+    not_in_intents_questions = set(intents_answers.keys()) - set(intents_questions.keys())
+    if len(not_in_intents_questions):
+        print('not in intents_questions, but in intents_answers: %s' % str(list(not_in_intents_questions)))
+
+    for k in intents_questions.keys():
+        intents_answers[k]['question_answers_plain'] = intents_questions[k]['answers_plain']
+
+    intents_merged_all = sorted(intents_answers.values(), key=lambda x: x[INTENT_ID])
+    dump_jl(intents_merged_all, 'intents_merged_all.tsv',
+            tsv_fieldnames=[k for k in intents_merged_all[0].keys() if k not in ['answers', 'questions']])
