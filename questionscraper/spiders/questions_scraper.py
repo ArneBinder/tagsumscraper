@@ -149,7 +149,7 @@ class QuestionsSpider(scrapy.Spider):
                 answers.extend(next_answers)
             else:
                 break
-        yield {'url': response.url, 'title': title, 'solved': solved, 'tags': tags, 'question': question, 'answers': answers}
+        yield {'url': response.request.url, 'title': title, 'solved': solved, 'tags': tags, 'question': question, 'answers': answers}
 
 
 class AnswersSpider(scrapy.Spider):
