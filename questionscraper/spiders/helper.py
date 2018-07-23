@@ -88,14 +88,14 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
             dif = len(intents[i]['links']) - len(set(intents[i]['links']))
             intents[i]['links'] = list(set(intents[i]['links']))
             if dif > 0:
-                print('DUPLICATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i][INTENT_ID], dif, intents[i][INTENT_TEXT]))
+                print('DUPLICATED LINKS FOR INTENT (id: %s; different: %i; duplicates: %i): %s' % (intents[i][INTENT_ID], len(intents[i]['links']), dif, intents[i][INTENT_TEXT]))
             intents[i]['answers_plain'] = '\n\n'.join((a['content_cleaned'] for a in intents[i]['answers'] if not a['has_quote']))
     elif scraped_questions_jsonl is not None:
         questions = load_jl(scraped_questions_jsonl, key='url')
         for i in range(len(intents)):
             dif = len(intents[i]['links']) - len(set(intents[i]['links']))
             if dif > 0:
-                print('DUPLICATED LINKS FOR INTENT (id: %s; dif: %i): %s' % (intents[i][INTENT_ID], dif, intents[i][INTENT_TEXT]))
+                print('DUPLICATED LINKS FOR INTENT (id: %s; different: %i; duplicates: %i): %s' % (intents[i][INTENT_ID], len(intents[i]['links']), dif, intents[i][INTENT_TEXT]))
             intents[i]['questions'] = [questions[url] for url in set(intents[i]['links']) if url in questions]
             intents[i]['answers_plain'] = '\n\n'.join(flatten([[a['content_cleaned'] for a in q['answers'] if not a['has_quote']] for q in intents[i]['questions']]))
     else:
