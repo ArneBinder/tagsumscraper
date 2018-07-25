@@ -11,6 +11,10 @@ from questionscraper.spiders.helper import flatten, get_intents_from_tsv, QUESTI
 URL_MAIN = 'https://telekomhilft.telekom.de'
 
 
+def get_message_url(message, response):
+    return response.urljoin(message.css('.lia-message-position-in-thread a::attr(href)').extract_first())
+
+
 def process_message_view(message, response):
 
     result = {}
@@ -77,29 +81,29 @@ def process_message_view(message, response):
     result['content'] = text.strip()
     result['content_cleaned'] = text_cleaned.strip()
 
-    #result['has_quote'] = any('[%s]' % CAPTION_BLOCKQUOTE in c for c in result['content'])
-    #result['has_image'] = any('[%s]' % CAPTION_IMAGE in c for c in result['content'])
     result['has_quote'] = '[%s]' % CAPTION_BLOCKQUOTE in result['content']
     result['has_image'] = '[%s]' % CAPTION_IMAGE in result['content']
 
-    result['url'] = response.urljoin(message.css('.lia-message-position-in-thread a::attr(href)').extract_first())
+    result['url'] = get_message_url(message, response)
     result['solution_accepted_by'] = message.css('.lia-component-solution-info .solution-accepter > a::text').extract_first()
 
-    #result['content_html'] = ''.join(message.css('.lia-message-body-content > :not(div), .lia-message-body-content > ::text').extract())
-    #content_wo_signature = message_content.xpath('*[not(contains(@class, "lia-message-signature"))] | text()')
     content_wo_divs = message_content.xpath('*[name() != "div"] | text()')
 
-    # concatenate and resolve relative links
+    # concatenate, resolve relative links and add target attribute to open links in new tab
     result['content_html'] = ''.join(content_wo_divs.extract()).strip()\
         .replace('src=\"/', 'src=\"%s/' % URL_MAIN)\
-        .replace('href=\"/', 'href=\"%s/' % URL_MAIN)
+        .replace('href=\"/', 'href=\"%s/' % URL_MAIN)\
+        .replace('<a href=', '<a target="_blank" href=')
 
     return result
 
 
-def parse_question(response):
+def parse_question(response, url_only=False):
     q = response.css('.lia-thread-topic')
     assert len(q) == 1, 'unexpected number of questions: %i for url: %s' % (len(q), response.request.url)
+    if url_only:
+        question_message_url = get_message_url(q[0], response)
+        return {'url': question_message_url}
     return process_message_view(q[0], response)
 
 
@@ -108,10 +112,8 @@ def parse_answers(response):
     replies_header = m_list.css('.lia-replies-header')
     # get lia-thread-reply_s (MessageView_s)
     if len(replies_header) == 0:
-        #answers = m_list.css('.lia-thread-reply')
         answers = m_list.css('.lia-message-view-wrapper')
     elif len(replies_header) == 1:
-        #answers = replies_header.xpath('following-sibling::div').css('.lia-thread-reply')
         answers = replies_header.xpath('following-sibling::div').css('.lia-message-view-wrapper')
     else:
         raise ValueError(
@@ -128,6 +130,7 @@ class QuestionsSpider(scrapy.Spider):
         assert intent_file is not None, 'no intent_file set. Please specify a intent_file via scrapy parameters: "-a intent_file=PATH_TO_INTENT_FILE"'
 
         logging.info('load %s from file: %s' % (QUESTION_PREFIX, intent_file))
+        # TODO: filter columns? see AnswersSpider.start_requests
         intents = get_intents_from_tsv(intent_file)
         urls = flatten([intent['links'] for intent in intents])
         dir = Path(intent_file).parent
@@ -182,7 +185,14 @@ class AnswersSpider(scrapy.Spider):
             assert intent_file is not None, 'no intent_file set. Please specify a intent_file via scrapy parameters: "-a intent_file=PATH_TO_INTENT_FILE"'
 
             logging.info('load %s from file: %s' % (ANSWER_PREFIX, intent_file))
-            intents = get_intents_from_tsv(intent_file)
+            intents = get_intents_from_tsv(
+                intent_file,
+                filter_columns=['Intent-ID', 'DT-Example', 'Basis-Intent-Text', 'Intent-Text', 'Answers-Searcher',
+                                'Intent-Type', 'Summary-Must-Haves', 'Summary-Example-3-Sents',
+                                'Answer_0', 'Answer_1', 'Answer_2', 'Answer_3', 'Answer_4', 'Answer_5', 'Answer_6',
+                                'Answer_7', 'Answer_9', 'Answer_10'],
+                scrape_flag_column='Scrapen?'
+            )
             urls = flatten([intent['links'] for intent in intents])
             dir = Path(intent_file).parent
             intents_backup_fn = (dir / 'intents.jl').resolve()
@@ -203,6 +213,15 @@ class AnswersSpider(scrapy.Spider):
         answers = parse_answers(response)
         answers_dict = {a['url']: a for a in answers}
         assert response.request.url in answers_dict, 'answers with response.request.url=%s not found at that page' % response.request.url
-        yield answers_dict[response.request.url]
+
+        page_1_url = response.css('.lia-paging-page-first > a::attr(href)').extract_first()
+        if page_1_url is not None:
+            page_1_resp = yield scrapy.Request(page_1_url)
+        else:
+            page_1_resp = response
+        question = parse_question(page_1_resp, url_only=True)
+        answer = answers_dict[response.request.url]
+        answer['question_url'] = question['url']
+        yield answer
 
 

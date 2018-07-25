@@ -6,7 +6,6 @@ from pathlib import Path
 
 QUESTION_PREFIX = 'Question_'
 ANSWER_PREFIX = 'Answer_'
-TOPIC_CAPTION = 'Intent-Text'
 INTENT_ID = 'Intent-ID'
 INTENT_TEXT = 'Intent-Text'
 
@@ -15,17 +14,22 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 
-def get_intents_from_tsv(path):
+def get_intents_from_tsv(path, filter_columns=None, scrape_flag_column=None, scrape_flag_true='1'):
     intents = []
 
     with open(path, 'r') as tsvin:
         reader = csv.DictReader(tsvin, delimiter='\t')
-        answer_cols = [col for col in reader.fieldnames if col.startswith(ANSWER_PREFIX)]
-        question_cols = [col for col in reader.fieldnames if col.startswith(QUESTION_PREFIX)]
+        cols = filter_columns or reader.fieldnames
+        answer_cols = [col for col in cols if col.startswith(ANSWER_PREFIX)]
+        question_cols = [col for col in cols if col.startswith(QUESTION_PREFIX)]
         assert len(answer_cols) == 0 or len(question_cols) == 0, 'found question (#%d) AND answer link columns (#%d) in %s, but expected just questions OR answers' % (len(question_cols), len(answer_cols), path)
         link_cols = answer_cols + question_cols
         for row in reader:
-            new_row = {c: row[c] for c in row if c not in link_cols}
+            skip = scrape_flag_column is not None and row[scrape_flag_column].strip() != scrape_flag_true
+            if skip:
+                #print(row)
+                continue
+            new_row = {c: row[c] for c in cols if c not in link_cols}
             # remove and collect link urls
             links_ = (row[col].strip() for col in link_cols)
             # filter out empty entries
@@ -63,7 +67,7 @@ def get_link_to_intent_mapping(intends, links_key):
     res = {}
     for intent in intends:
         for link in intent[links_key]:
-            res[link] = intent[TOPIC_CAPTION].strip()
+            res[link] = intent[INTENT_TEXT].strip()
     return res
 
 
@@ -146,7 +150,7 @@ def create_sql_inserts(intents_jsonl, scraped_questions_jsonl=None, scraped_answ
     with open((dir / 'insert_intents.sql').resolve(), 'w') as insert_intents:
         insert_intents.write('INSERT INTO st_docset(topic)\n')
         insert_intents.write('VALUES\n')
-        lines = ',\n'.join(('("%s")' % intend[TOPIC_CAPTION].replace('"', '\'') for intend in intents if intend[TOPIC_CAPTION] != ''))
+        lines = ',\n'.join(('("%s")' % intend[INTENT_TEXT].replace('"', '\'') for intend in intents if intend[INTENT_TEXT] != ''))
         insert_intents.write(lines + ';')
 
 
@@ -173,7 +177,7 @@ def create_sql_inserts(intents_jsonl, scraped_questions_jsonl=None, scraped_answ
         c = db.cursor()
         c.execute('ALTER TABLE st_doc CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_bin')
         c.execute('ALTER TABLE st_docset CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_bin')
-        c.executemany('INSERT INTO st_docset (topic) VALUES (%s)', (intend[TOPIC_CAPTION].replace('"', '\'') for intend in intents if intend[TOPIC_CAPTION] != ''))
+        c.executemany('INSERT INTO st_docset (topic) VALUES (%s)', (intend[INTENT_TEXT].replace('"', '\'') for intend in intents if intend[INTENT_TEXT] != ''))
         db.commit()
         c.executemany(
             'INSERT INTO st_doc(docset_id, doc_title, doc_text) SELECT id, %s, %s FROM st_docset WHERE topic = %s',
