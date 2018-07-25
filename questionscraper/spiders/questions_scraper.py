@@ -70,7 +70,8 @@ def process_message_view(message, response):
                     result += '[%s]{%s} ' % (CAPTION_UNKNOWN, e.extract())
         return result.replace('\u00a0', ' ').strip(), result_cleaned.replace('\u00a0', ' ').strip()
 
-    text, text_cleaned = serialize_elem(message.css('.lia-message-body-content'))
+    message_content = message.css('.lia-message-body-content')
+    text, text_cleaned = serialize_elem(message_content)
     result['content'] = text.strip()
     result['content_cleaned'] = text_cleaned.strip()
 
@@ -81,6 +82,11 @@ def process_message_view(message, response):
 
     result['url'] = response.urljoin(message.css('.lia-message-position-in-thread a::attr(href)').extract_first())
     result['solution_accepted_by'] = message.css('.lia-component-solution-info .solution-accepter > a::text').extract_first()
+
+    #result['content_html'] = ''.join(message.css('.lia-message-body-content > :not(div), .lia-message-body-content > ::text').extract())
+    #content_wo_signature = message_content.xpath('*[not(contains(@class, "lia-message-signature"))] | text()')
+    content_wo_divs = message_content.xpath('*[name() != "div"] | text()')
+    result['content_html'] = ''.join(content_wo_divs.extract()).strip()
 
     return result
 
@@ -159,6 +165,9 @@ class AnswersSpider(scrapy.Spider):
         #https://telekomhilft.telekom.de/t5/Telefonie-Internet/Internet-ist-viel-zu-langsam/m-p/2694977#M798659
         #https://telekomhilft.telekom.de/t5/Telefonie-Daten/Auslandsflat-Laendergruppe-2/m-p/2820568#M57752
         #https://telekomhilft.telekom.de/t5/Telefonie-Daten/Auslandsflat-Laendergruppe-2/m-p/2820660#M57754
+
+        #https://telekomhilft.telekom.de/t5/Fernsehen/TV-Paket-kuendigen/m-p/2603477#M202884
+
         test_link = getattr(self, 'test_link', None)
         if test_link is not None:
             urls = [test_link]
