@@ -8,6 +8,8 @@ from inline_requests import inline_requests
 
 from questionscraper.spiders.helper import flatten, get_intents_from_tsv, QUESTION_PREFIX, ANSWER_PREFIX
 
+URL_MAIN = 'https://telekomhilft.telekom.de'
+
 
 def process_message_view(message, response):
 
@@ -86,7 +88,11 @@ def process_message_view(message, response):
     #result['content_html'] = ''.join(message.css('.lia-message-body-content > :not(div), .lia-message-body-content > ::text').extract())
     #content_wo_signature = message_content.xpath('*[not(contains(@class, "lia-message-signature"))] | text()')
     content_wo_divs = message_content.xpath('*[name() != "div"] | text()')
-    result['content_html'] = ''.join(content_wo_divs.extract()).strip()
+
+    # concatenate and resolve relative links
+    result['content_html'] = ''.join(content_wo_divs.extract()).strip()\
+        .replace('src=\"/', 'src=\"%s/' % URL_MAIN)\
+        .replace('href=\"/', 'href=\"%s/' % URL_MAIN)
 
     return result
 
