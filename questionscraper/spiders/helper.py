@@ -110,15 +110,25 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
                         intents[i]['questions'][j]['nbr_answers_relevant'] += 1
                     else:
                         intents[i]['questions'][j]['answers'][k]['is_relevant'] = False
-            intents[i]['answers_plain'] = '\n\n'.join(flatten([[a['content_cleaned'] for a in q['answers'] if not a['has_quote']] for q in intents[i]['questions']]))
-            intents[i]['answers_plain_relevant'] = '\n\n'.join(flatten(
-                [[a['content_cleaned'] for a in q['answers'] if not a['has_quote'] and a['is_relevant']] for q in intents[i]['questions']]))
+            answers = flatten([[a for a in q['answers'] if not a['has_quote']] for q in intents[i]['questions']])
+            answers_relevant = flatten(
+                [[a for a in q['answers'] if not a['has_quote'] and a['is_relevant']] for q in intents[i]['questions']])
+            intents[i]['answers_plain'] = '\n\n'.join([a['content_cleaned'] for a in answers])
+            intents[i]['answers_plain_relevant'] = '\n\n'.join([a['content_cleaned'] for a in answers_relevant])
+
+            def join_answers_marked(answers):
+                return '\n\n'.join(['----- %s -----\n%s' % (a['url'], a['content_cleaned']) for a in answers])
+
+            intents[i]['answers_plain_marked'] = join_answers_marked(answers)
+            intents[i]['answers_plain_marked_relevant'] = join_answers_marked(answers_relevant)
 
             intents[i]['nbr_answers'] = sum([q['nbr_answers'] for q in intents[i]['questions']])
             intents[i]['nbr_answers_relevant'] = sum([q['nbr_answers_relevant'] for q in intents[i]['questions']])
 
             intents[i]['nbr_words'] = len(intents[i]['answers_plain'].split())
             intents[i]['nbr_words_relevant'] = len(intents[i]['answers_plain_relevant'].split())
+
+            intents[i]['nbr_original_relevant_answer_links'] = len(intents[i]['original_relevant_answer_links'])
 
     else:
         raise AssertionError('please provide a question or answer file')
