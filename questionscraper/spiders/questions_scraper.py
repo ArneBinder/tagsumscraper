@@ -1,12 +1,13 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 
 import scrapy
 from inline_requests import inline_requests
 
-from questionscraper.spiders.helper import flatten, get_intents_from_tsv, QUESTION_PREFIX, ANSWER_PREFIX
+from questionscraper.spiders.helper import flatten, get_intents_from_tsv, QUESTION_PREFIX, ANSWER_PREFIX, load_jl
 
 URL_MAIN = 'https://telekomhilft.telekom.de'
 
@@ -126,12 +127,32 @@ class QuestionsSpider(scrapy.Spider):
     name = "questions"
 
     def start_requests(self):
+        MAX_ANSWERS = 10
+
         intent_file = getattr(self, 'intent_file', None)
         assert intent_file is not None, 'no intent_file set. Please specify a intent_file via scrapy parameters: "-a intent_file=PATH_TO_INTENT_FILE"'
 
         logging.info('load %s from file: %s' % (QUESTION_PREFIX, intent_file))
-        # TODO: filter columns? see AnswersSpider.start_requests
-        intents = get_intents_from_tsv(intent_file)
+
+        f_ext = os.path.splitext(intent_file)[1]
+        if f_ext.lower() == 'tsv':
+            # TODO: filter columns? see AnswersSpider.start_requests
+            raise NotImplementedError('only intent files in json line file format are implemented for scraping question')
+        elif f_ext.lower() in ['.jl', '.jsonl']:
+            intents = load_jl(intent_file)
+            #question_links = []
+            #relevant_answer_links = []
+            for i, intent in enumerate(intents):
+                intents[i]['original_relevant_answer_links'] = intents[i]['links']
+                answers = intent['answers'][:MAX_ANSWERS]
+                intents[i]['relevant_answer_links'] = [a['url'] for a in answers]
+                #relevant_answer_links.extend(intents[i]['relevant_answer_links'])
+                intents[i]['links'] = sorted(list(set([a['question_url'] for a in answers])))
+                #question_links.extend(intents[i]['question_links'])
+                del intents[i]['answers']
+
+        else:
+            raise ValueError('unknown intent fiel extension: %s' % f_ext)
         urls = flatten([intent['links'] for intent in intents])
         dir = Path(intent_file).parent
         intents_backup_fn = (dir / 'intents.jl').resolve()
