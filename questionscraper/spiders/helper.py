@@ -117,6 +117,9 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
             intents[i]['nbr_answers'] = sum([q['nbr_answers'] for q in intents[i]['questions']])
             intents[i]['nbr_answers_relevant'] = sum([q['nbr_answers_relevant'] for q in intents[i]['questions']])
 
+            intents[i]['nbr_words'] = len(intents[i]['answers_plain'].split())
+            intents[i]['nbr_words_relevant'] = len(intents[i]['answers_plain_relevant'].split())
+
     else:
         raise AssertionError('please provide a question or answer file')
     dump_jl(intents, (Path(intents_jsonl).parent / 'intents_merged.jl').resolve())
