@@ -209,7 +209,7 @@ class AnswersSpider(scrapy.Spider):
             intents = get_intents_from_tsv(
                 intent_file,
                 filter_columns=['Intent-ID', 'DT-Example', 'Basis-Intent-Text', 'Intent-Text', 'Answers-Searcher',
-                                'Intent-Type', 'Summary-Must-Haves', 'Summary-Example-3-Sents',
+                                'Intent-Type', 'Summary-Must-Haves', 'Summary-Example-3-Sents- OLD VERSIONS',
                                 'Answer_0', 'Answer_1', 'Answer_2', 'Answer_3', 'Answer_4', 'Answer_5', 'Answer_6',
                                 'Answer_7', 'Answer_9', 'Answer_10'],
                 scrape_flag_column='Scrapen?'
