@@ -129,6 +129,7 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
             intents[i]['nbr_words_relevant'] = len(intents[i]['answers_plain_relevant'].split())
 
             intents[i]['nbr_original_relevant_answer_links'] = len(intents[i]['original_relevant_answer_links'])
+            intents[i]['nbr_questions'] = len(intents[i]['questions'])
 
     else:
         raise AssertionError('please provide a question or answer file')
