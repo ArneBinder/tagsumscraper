@@ -211,7 +211,10 @@ class AnswersSpider(scrapy.Spider):
                 filter_columns=['Intent-ID', 'DT-Example', 'Basis-Intent-Text', 'Intent-Text', 'Answers-Searcher',
                                 'Intent-Type', 'Summary-Must-Haves', 'Summary-Example-3-Sents- OLD VERSIONS',
                                 'Answer_0', 'Answer_1', 'Answer_2', 'Answer_3', 'Answer_4', 'Answer_5', 'Answer_6',
-                                'Answer_7', 'Answer_9', 'Answer_10'],
+                                'Answer_7', 'Answer_8', 'Answer_9',
+                                #'Answer_10', 'Answer_11', 'Answer_12', 'Answer_13', 'Answer_14', 'Answer_15', 'Answer_16',
+                                #'Answer_17', 'Answer_18', 'Answer_19'
+                                ],
                 scrape_flag_column='Scrapen?'
             )
             urls = flatten([intent['links'] for intent in intents])
