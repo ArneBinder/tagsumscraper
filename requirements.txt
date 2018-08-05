@@ -1,2 +1,6 @@
 scrapy
 scrapy-inline-requests
+spacy
+
+## to install german spacy model, execute from bash:
+## python -m spacy download de

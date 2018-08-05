@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import spacy
 
 QUESTION_PREFIX = 'Question_'
 ANSWER_PREFIX = 'Answer_'
@@ -81,7 +82,10 @@ def create_sql_inserts_questions(directory='questions'):
                        scraped_questions_jsonl=os.path.join(directory, 'scraped.jl'), insert=False)
 
 
-def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scraped_answers_jsonl=None):
+def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scraped_answers_jsonl=None, split_sentences=True):
+    if split_sentences:
+        nlp = spacy.load('de')
+        print('german spacy model was loaded successful')
     intents = load_jl(intents_jsonl)
     assert scraped_questions_jsonl is None or scraped_answers_jsonl is None, 'please provide just one question OR answer file'
     if scraped_answers_jsonl is not None:
@@ -116,11 +120,23 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
             intents[i]['answers_plain'] = '\n\n'.join([a['content_cleaned'] for a in answers])
             intents[i]['answers_plain_relevant'] = '\n\n'.join([a['content_cleaned'] for a in answers_relevant])
 
-            def join_answers_marked(answers):
-                return '\n\n'.join(['----- %s -----\n%s' % (a['url'], a['content_cleaned']) for a in answers])
+            def join_answers_marked(answers, split_sentences=False):
+                res = []
+                if split_sentences:
+                    for a in answers:
+                        paragraphs = ['|\n'.join(map(lambda x:  str(x).strip(), nlp(p).sents)) for p in a['content_cleaned'].split('\n\n') if p.strip() != '']
+                        res.append('----- %s -----\n%s' % (a['url'], '|\n\n'.join(paragraphs)))
+                    return '|\n\n'.join(res)
+                else:
+                    res = ['----- %s -----\n%s' % (a['url'], a['content_cleaned']) for a in answers]
+                    return '\n\n'.join(res)
 
             intents[i]['answers_plain_marked'] = join_answers_marked(answers)
             intents[i]['answers_plain_marked_relevant'] = join_answers_marked(answers_relevant)
+
+            if split_sentences:
+                intents[i]['answers_plain_marked_sentences'] = join_answers_marked(answers, split_sentences=True)
+                intents[i]['answers_plain_marked_sentences_relevant'] = join_answers_marked(answers_relevant, split_sentences=True)
 
             intents[i]['nbr_answers'] = sum([q['nbr_answers'] for q in intents[i]['questions']])
             intents[i]['nbr_answers_relevant'] = sum([q['nbr_answers_relevant'] for q in intents[i]['questions']])
