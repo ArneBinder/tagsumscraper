@@ -32,7 +32,7 @@ def get_intents_from_tsv(path, filter_columns=None, scrape_flag_column=None, scr
                 continue
             new_row = {c: row[c] for c in cols if c not in link_cols}
             # remove and collect link urls
-            links_ = (row[col].strip() for col in link_cols)
+            links_ = (row[col].strip() for col in link_cols if row[col] is not None)
             # filter out empty entries
             links = [x for x in links_ if x != '' and x.startswith('http')]
 
