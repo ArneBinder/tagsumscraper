@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 import spacy
+import re
 
 QUESTION_PREFIX = 'Question_'
 ANSWER_PREFIX = 'Answer_'
@@ -124,7 +125,7 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
                 res = []
                 if split_sentences:
                     for a in answers:
-                        paragraphs = ['|\n'.join(map(lambda x:  str(x).strip(), nlp(p).sents)) for p in a['content_cleaned'].split('\n\n') if p.strip() != '']
+                        paragraphs = ['|\n'.join(map(lambda x:  re.sub(r' +', ' ', str(x).strip().replace('\n', ' ')), nlp(p).sents)) for p in a['content_cleaned'].split('\n\n') if p.strip() != '']
                         res.append('----- %s -----\n%s' % (a['url'], '|\n\n'.join(paragraphs)))
                     return '|\n\n'.join(res)
                 else:

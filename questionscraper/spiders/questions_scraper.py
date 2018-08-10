@@ -34,7 +34,7 @@ def process_message_view(message, response):
     CAPTION_UNKNOWN = 'UNKNOWN'
 
     def serialize_elem(elem):
-        NODE_STR = 'text() | br | a | span//img | p | span/text() | span/a | blockquote'
+        NODE_STR = 'text() | br | a | span//img | p | span/text() | span/a | blockquote | font/text()'
         elems = elem.xpath(NODE_STR)
         result = ''
         result_cleaned = ''
