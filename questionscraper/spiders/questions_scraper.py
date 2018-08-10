@@ -34,7 +34,9 @@ def process_message_view(message, response):
     CAPTION_UNKNOWN = 'UNKNOWN'
 
     def serialize_elem(elem):
-        NODE_STR = 'text() | br | a | span//img | p | span/text() | span/a | blockquote | font/text()'
+        NODE_STR = 'text() | br | a | span//img | p | span/text() | font/text() | strong/text() | span/a | blockquote  ' \
+                   '| ul/li | div[contains(concat(" ", @class, " "), " accordion-content ")] ' \
+                   '| div[contains(concat(" ", @class, " "), " page ")]/div[contains(concat(" ", @class, " "), " layoutArea ")]/div[contains(concat(" ", @class, " "), " column ")]' # | div.page > div.layout > div.column'
         elems = elem.xpath(NODE_STR)
         result = ''
         result_cleaned = ''
@@ -69,15 +71,20 @@ def process_message_view(message, response):
                     img_src = response.urljoin(e.xpath('@src').extract_first())
                     result += '[%s]{%s}' % (CAPTION_IMAGE, img_src)
                     result_cleaned += img_src
-                elif tag_name == 'p':
+                elif tag_name in ['p', 'li', 'div']:
                     p_content, p_content_cleaned = serialize_elem(e)
-                    result += '\n' + p_content
-                    result_cleaned += '\n' + p_content_cleaned
+                    if p_content != '':
+                        result += '\n\n' + p_content
+                    if p_content_cleaned != '':
+                        result_cleaned += '\n\n' + p_content_cleaned
                 else:
                     result += '[%s]{%s} ' % (CAPTION_UNKNOWN, e.extract())
         return result.replace('\u00a0', ' ').strip(), result_cleaned.replace('\u00a0', ' ').strip()
 
-    message_content = message.css('.lia-message-body-content')
+    # try to get rich text
+    message_content = message.css('.lia-message-body-content .outerRichtextDiv')
+    if message_content.extract_first() is None:
+        message_content = message.css('.lia-message-body-content')
     text, text_cleaned = serialize_elem(message_content)
     result['content'] = text.strip()
     result['content_cleaned'] = text_cleaned.strip()
@@ -88,10 +95,11 @@ def process_message_view(message, response):
     result['url'] = get_message_url(message, response)
     result['solution_accepted_by'] = message.css('.lia-component-solution-info .solution-accepter > a::text').extract_first()
 
-    content_wo_divs = message_content.xpath('*[name() != "div"] | text()')
+    #content_wo_divs = message_content.xpath('*[name() != "div"] | text()')
+    content_wo_signature = message_content.xpath('*[not(contains(concat(" ", @class, " "), " lia-message-signature "))] | text()')
 
     # concatenate, resolve relative links and add target attribute to open links in new tab
-    result['content_html'] = ''.join(content_wo_divs.extract()).strip()\
+    result['content_html'] = ''.join(content_wo_signature.extract()).strip()\
         .replace('src=\"/', 'src=\"%s/' % URL_MAIN)\
         .replace('href=\"/', 'href=\"%s/' % URL_MAIN)\
         .replace('<a href=', '<a target="_blank" href=')

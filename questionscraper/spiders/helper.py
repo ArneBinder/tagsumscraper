@@ -86,7 +86,7 @@ def create_sql_inserts_questions(directory='questions'):
 def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scraped_answers_jsonl=None, split_sentences=True):
     if split_sentences:
         nlp = spacy.load('de')
-        print('german spacy model was loaded successful')
+        print('german spacy model loaded successfully')
     intents = load_jl(intents_jsonl)
     assert scraped_questions_jsonl is None or scraped_answers_jsonl is None, 'please provide just one question OR answer file'
     if scraped_answers_jsonl is not None:
