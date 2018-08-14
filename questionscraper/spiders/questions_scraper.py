@@ -34,7 +34,7 @@ def process_message_view(message, response):
     CAPTION_UNKNOWN = 'UNKNOWN'
 
     def serialize_elem(elem):
-        NODE_STR = 'text() | br | a | span//img | p | span/text() | font/text() | strong/text() | span/a | blockquote  ' \
+        NODE_STR = 'text() | br | a | span//img | p | span | font | strong | span/a | blockquote  ' \
                    '| ul/li | div[contains(concat(" ", @class, " "), " accordion-content ")] ' \
                    '| div[contains(concat(" ", @class, " "), " page ")]/div[contains(concat(" ", @class, " "), " layoutArea ")]/div[contains(concat(" ", @class, " "), " column ")]' # | div.page > div.layout > div.column'
         elems = elem.xpath(NODE_STR)
@@ -77,6 +77,12 @@ def process_message_view(message, response):
                         result += '\n\n' + p_content
                     if p_content_cleaned != '':
                         result_cleaned += '\n\n' + p_content_cleaned
+                elif tag_name in ['span', 'font', 'strong']:
+                    s_content, s_content_cleaned = serialize_elem(e)
+                    if s_content != '':
+                        result += ' ' + s_content
+                    if s_content_cleaned != '':
+                        result_cleaned += ' ' + s_content_cleaned
                 else:
                     result += '[%s]{%s} ' % (CAPTION_UNKNOWN, e.extract())
         return result.replace('\u00a0', ' ').strip(), result_cleaned.replace('\u00a0', ' ').strip()
