@@ -34,6 +34,7 @@ def process_message_view(message, response):
     CAPTION_UNKNOWN = 'UNKNOWN'
 
     def serialize_elem(elem):
+        # TODO: check "a" and "span" vs "span/a"
         NODE_STR = 'text() | br | a | span//img | p | span | font | strong | span/a | blockquote  ' \
                    '| ul/li | div[contains(concat(" ", @class, " "), " accordion-content ")] ' \
                    '| div[contains(concat(" ", @class, " "), " page ")]/div[contains(concat(" ", @class, " "), " layoutArea ")]/div[contains(concat(" ", @class, " "), " column ")]' # | div.page > div.layout > div.column'
