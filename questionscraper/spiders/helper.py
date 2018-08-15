@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import spacy
 import re
+import plac
 
 QUESTION_PREFIX = 'Question_'
 ANSWER_PREFIX = 'Answer_'
@@ -83,8 +84,15 @@ def create_sql_inserts_questions(directory='questions'):
                        scraped_questions_jsonl=os.path.join(directory, 'scraped.jl'), insert=False)
 
 
-def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scraped_answers_jsonl=None, split_sentences=True):
-    if split_sentences:
+@plac.annotations(
+    intents_jsonl=('path to intents_jsonl', 'option', 'i', str),
+    out_dir=('path to out_dir', 'option', 'o', str),
+    scraped_questions_jsonl=('path to scraped_questions_jsonl', 'option', 'q', str),
+    scraped_answers_jsonl=('path to scraped_answers_jsonl', 'option', 'a', str),
+    dont_split_sentences=('count of produced index files', 'flag')
+)
+def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=None, scraped_answers_jsonl=None, dont_split_sentences=False):
+    if not dont_split_sentences:
         nlp = spacy.load('de')
         print('german spacy model loaded successfully')
     intents = load_jl(intents_jsonl)
@@ -135,7 +143,7 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
             intents[i]['answers_plain_marked'] = join_answers_marked(answers)
             intents[i]['answers_plain_marked_relevant'] = join_answers_marked(answers_relevant)
 
-            if split_sentences:
+            if not dont_split_sentences:
                 intents[i]['answers_plain_marked_sentences'] = join_answers_marked(answers, split_sentences=True)
                 intents[i]['answers_plain_marked_sentences_relevant'] = join_answers_marked(answers_relevant, split_sentences=True)
 
@@ -150,7 +158,7 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
 
     else:
         raise AssertionError('please provide a question or answer file')
-    fn_out_stem = (Path(intents_jsonl).parent / (Path(intents_jsonl).stem + '_merged')).resolve()
+    fn_out_stem = (Path(out_dir) / (Path(intents_jsonl).stem + '_merged')).resolve()
     dump_jl(intents, fn_out_stem.with_suffix('.jl'))
     tsv_fieldnames = [k for k in intents[0].keys() if k not in ['answers', 'questions'] and not k.startswith('answers_plain')]
     tsv_fieldnames += [k for k in intents[0].keys() if k.startswith('answers_plain')]
@@ -308,3 +316,7 @@ def merge_questions_answers(merged_intents_questions='questions/intents_merged.j
     intents_merged_all = sorted(intents_answers.values(), key=lambda x: x[INTENT_ID])
     dump_jl(intents_merged_all, 'intents_merged_all.tsv',
             tsv_fieldnames=[k for k in intents_merged_all[0].keys() if k not in ['answers', 'questions']])
+
+
+if __name__ == "__main__":
+    plac.call(merge_answers_to_intents)

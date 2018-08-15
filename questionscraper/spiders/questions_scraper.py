@@ -10,7 +10,7 @@ from inline_requests import inline_requests
 from questionscraper.spiders.helper import flatten, get_intents_from_tsv, QUESTION_PREFIX, ANSWER_PREFIX, load_jl
 
 URL_MAIN = 'https://telekomhilft.telekom.de'
-MAX_ANSWERS = 10
+#MAX_ANSWERS = 20
 
 
 def get_message_url(message, response):
@@ -143,7 +143,8 @@ class QuestionsSpider(scrapy.Spider):
     name = "questions"
 
     def start_requests(self):
-
+        max_answers = getattr(self, 'max_answers', 10)
+        logging.info('use max_answers: %i' % max_answers)
         intent_file = getattr(self, 'intent_file', None)
         assert intent_file is not None, 'no intent_file set. Please specify a intent_file via scrapy parameters: "-a intent_file=PATH_TO_INTENT_FILE"'
 
@@ -159,7 +160,7 @@ class QuestionsSpider(scrapy.Spider):
             #relevant_answer_links = []
             for i, intent in enumerate(intents):
                 intents[i]['original_relevant_answer_links'] = intents[i]['links']
-                answers = intent['answers'][:MAX_ANSWERS]
+                answers = intent['answers'][:max_answers]
                 intents[i]['relevant_answer_links'] = [a['url'] for a in answers]
                 #relevant_answer_links.extend(intents[i]['relevant_answer_links'])
                 intents[i]['links'] = sorted(list(set([a['question_url'] for a in answers])))
@@ -167,10 +168,10 @@ class QuestionsSpider(scrapy.Spider):
                 del intents[i]['answers']
 
         else:
-            raise ValueError('unknown intent fiel extension: %s' % f_ext)
+            raise ValueError('unknown intent file extension: %s' % f_ext)
         urls = flatten([intent['links'] for intent in intents])
         dir = Path(intent_file).parent
-        intents_backup_fn = (dir / ('intents_%i.jl' % MAX_ANSWERS)).resolve()
+        intents_backup_fn = (dir / ('intents_questions_%i.jl' % max_answers)).resolve()
         logging.info('backup intents to %s' % intents_backup_fn)
         with open(intents_backup_fn, 'w') as intents_out:
             #json.dump(intents, intents_out)
@@ -212,7 +213,8 @@ class AnswersSpider(scrapy.Spider):
         #https://telekomhilft.telekom.de/t5/Telefonie-Daten/Auslandsflat-Laendergruppe-2/m-p/2820660#M57754
 
         #https://telekomhilft.telekom.de/t5/Fernsehen/TV-Paket-kuendigen/m-p/2603477#M202884
-
+        max_answers = getattr(self, 'max_answers', 10)
+        logging.info('use max_answers: %i' % max_answers)
         test_link = getattr(self, 'test_link', None)
         if test_link is not None:
             urls = [test_link]
@@ -229,12 +231,14 @@ class AnswersSpider(scrapy.Spider):
                                 #'Answer_7', 'Answer_8', 'Answer_9',
                                 #'Answer_10', 'Answer_11', 'Answer_12', 'Answer_13', 'Answer_14', 'Answer_15', 'Answer_16',
                                 #'Answer_17', 'Answer_18', 'Answer_19'
-                                ] + [ANSWER_PREFIX + str(i) for i in range(MAX_ANSWERS)],
+                                ] + [ANSWER_PREFIX + str(i) for i in range(max_answers)],
                 scrape_flag_column='Scrapen?'
             )
             urls = flatten([intent['links'] for intent in intents])
+            for url in urls:
+                logging.debug(url)
             dir = Path(intent_file).parent
-            intents_backup_fn = (dir / ('intents_%i.jl' % MAX_ANSWERS)).resolve()
+            intents_backup_fn = (dir / ('intents_answers_%i.jl' % max_answers)).resolve()
             logging.info('backup intents to %s' % intents_backup_fn)
             with open(intents_backup_fn, 'w') as intents_out:
                 #json.dump(intents, intents_out)
