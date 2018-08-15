@@ -92,9 +92,10 @@ def create_sql_inserts_questions(directory='questions'):
     dont_split_sentences=('count of produced index files', 'flag')
 )
 def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=None, scraped_answers_jsonl=None, dont_split_sentences=False):
+    logging.info('intents_jsonl=%s  out_dir=%s  scraped_questions_jsonl=%s  scraped_answers_jsonl=%s' % (intents_jsonl, out_dir, scraped_questions_jsonl, scraped_answers_jsonl))
     if not dont_split_sentences:
         nlp = spacy.load('de')
-        print('german spacy model loaded successfully')
+        logging.info('german spacy model loaded successfully')
     intents = load_jl(intents_jsonl)
     assert scraped_questions_jsonl is None or scraped_answers_jsonl is None, 'please provide just one question OR answer file'
     if scraped_answers_jsonl is not None:

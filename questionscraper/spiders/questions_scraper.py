@@ -143,7 +143,7 @@ class QuestionsSpider(scrapy.Spider):
     name = "questions"
 
     def start_requests(self):
-        max_answers = getattr(self, 'max_answers', 10)
+        max_answers = int(getattr(self, 'max_answers', 10))
         logging.info('use max_answers: %i' % max_answers)
         intent_file = getattr(self, 'intent_file', None)
         assert intent_file is not None, 'no intent_file set. Please specify a intent_file via scrapy parameters: "-a intent_file=PATH_TO_INTENT_FILE"'
@@ -213,7 +213,7 @@ class AnswersSpider(scrapy.Spider):
         #https://telekomhilft.telekom.de/t5/Telefonie-Daten/Auslandsflat-Laendergruppe-2/m-p/2820660#M57754
 
         #https://telekomhilft.telekom.de/t5/Fernsehen/TV-Paket-kuendigen/m-p/2603477#M202884
-        max_answers = getattr(self, 'max_answers', 10)
+        max_answers = int(getattr(self, 'max_answers', 10))
         logging.info('use max_answers: %i' % max_answers)
         test_link = getattr(self, 'test_link', None)
         if test_link is not None:
@@ -257,13 +257,13 @@ class AnswersSpider(scrapy.Spider):
         answers_dict = {a['url']: a for a in answers}
         assert response.request.url in answers_dict, 'answers with response.request.url=%s not found at that page' % response.request.url
 
+        answer = answers_dict[response.request.url]
         page_1_url = response.css('.lia-paging-page-first > a::attr(href)').extract_first()
         if page_1_url is not None:
-            page_1_resp = yield scrapy.Request(page_1_url)
+            page_1_resp = yield scrapy.Request(page_1_url, dont_filter=True)
         else:
             page_1_resp = response
         question = parse_question(page_1_resp, url_only=True)
-        answer = answers_dict[response.request.url]
         answer['question_url'] = question['url']
         yield answer
 
