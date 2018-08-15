@@ -10,6 +10,7 @@ from inline_requests import inline_requests
 from questionscraper.spiders.helper import flatten, get_intents_from_tsv, QUESTION_PREFIX, ANSWER_PREFIX, load_jl
 
 URL_MAIN = 'https://telekomhilft.telekom.de'
+MAX_ANSWERS = 10
 
 
 def get_message_url(message, response):
@@ -142,7 +143,6 @@ class QuestionsSpider(scrapy.Spider):
     name = "questions"
 
     def start_requests(self):
-        MAX_ANSWERS = 10
 
         intent_file = getattr(self, 'intent_file', None)
         assert intent_file is not None, 'no intent_file set. Please specify a intent_file via scrapy parameters: "-a intent_file=PATH_TO_INTENT_FILE"'
@@ -170,7 +170,7 @@ class QuestionsSpider(scrapy.Spider):
             raise ValueError('unknown intent fiel extension: %s' % f_ext)
         urls = flatten([intent['links'] for intent in intents])
         dir = Path(intent_file).parent
-        intents_backup_fn = (dir / 'intents.jl').resolve()
+        intents_backup_fn = (dir / ('intents_%i.jl' % MAX_ANSWERS)).resolve()
         logging.info('backup intents to %s' % intents_backup_fn)
         with open(intents_backup_fn, 'w') as intents_out:
             #json.dump(intents, intents_out)
@@ -225,16 +225,16 @@ class AnswersSpider(scrapy.Spider):
                 intent_file,
                 filter_columns=['Intent-ID', 'DT-Example', 'Basis-Intent-Text', 'Intent-Text', 'Answers-Searcher',
                                 'Intent-Type', 'Summary-Must-Haves', 'Summary-Example-3-Sents- OLD VERSIONS',
-                                'Answer_0', 'Answer_1', 'Answer_2', 'Answer_3', 'Answer_4', 'Answer_5', 'Answer_6',
-                                'Answer_7', 'Answer_8', 'Answer_9',
+                                #'Answer_0', 'Answer_1', 'Answer_2', 'Answer_3', 'Answer_4', 'Answer_5', 'Answer_6',
+                                #'Answer_7', 'Answer_8', 'Answer_9',
                                 #'Answer_10', 'Answer_11', 'Answer_12', 'Answer_13', 'Answer_14', 'Answer_15', 'Answer_16',
                                 #'Answer_17', 'Answer_18', 'Answer_19'
-                                ],
+                                ] + [ANSWER_PREFIX + str(i) for i in range(MAX_ANSWERS)],
                 scrape_flag_column='Scrapen?'
             )
             urls = flatten([intent['links'] for intent in intents])
             dir = Path(intent_file).parent
-            intents_backup_fn = (dir / 'intents.jl').resolve()
+            intents_backup_fn = (dir / ('intents_%i.jl' % MAX_ANSWERS)).resolve()
             logging.info('backup intents to %s' % intents_backup_fn)
             with open(intents_backup_fn, 'w') as intents_out:
                 #json.dump(intents, intents_out)

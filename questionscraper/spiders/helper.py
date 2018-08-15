@@ -150,10 +150,11 @@ def merge_answers_to_intents(intents_jsonl, scraped_questions_jsonl=None, scrape
 
     else:
         raise AssertionError('please provide a question or answer file')
-    dump_jl(intents, (Path(intents_jsonl).parent / 'intents_merged.jl').resolve())
+    fn_out_stem = (Path(intents_jsonl).parent / (Path(intents_jsonl).stem + '_merged')).resolve()
+    dump_jl(intents, fn_out_stem.with_suffix('.jl'))
     tsv_fieldnames = [k for k in intents[0].keys() if k not in ['answers', 'questions'] and not k.startswith('answers_plain')]
     tsv_fieldnames += [k for k in intents[0].keys() if k.startswith('answers_plain')]
-    dump_jl(intents, (Path(intents_jsonl).parent / 'intents_merged.tsv').resolve(), tsv_fieldnames=tsv_fieldnames)
+    dump_jl(intents, fn_out_stem.with_suffix('.tsv'), tsv_fieldnames=tsv_fieldnames)
 
 
 def get_answers_and_intent_and_mapping(intents_jsonl, scraped_questions_jsonl=None, scraped_answers_jsonl=None):
