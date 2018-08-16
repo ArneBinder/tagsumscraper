@@ -50,7 +50,7 @@ def serialize_elem(elem, response):
                 elif len(a_text) > 3 and href.startswith(a_text[:-3]):
                     result_cleaned += href
                 else:
-                    result_cleaned += '%s (%s)' % (a_text, href)
+                    result_cleaned += '%s [%s]' % (a_text, href)
 
             elif tag_name == 'blockquote':
                 blockquote_content = serialize_elem(e, response)
