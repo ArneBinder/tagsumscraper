@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # usage: ./scrape.sh [DIRECTORY] [MAX_ANSWERS] [INTENT_FILE]
+#   e.g. with log file creation: ./scrape.sh scrape_20 20 > scrape_20/log.txt 2>&1
 
 ## use first argument as directory
 if [ -n "$1" ]; then
