@@ -21,7 +21,7 @@ def get_message_url(message, response):
 
 def serialize_elem(elem, response):
     NODE_STR = 'text() | br | a | span//img | p | span | font | strong | blockquote  ' \
-               '| ul/li | div[contains(concat(" ", @class, " "), " accordion-content ")] ' \
+               '| ul/li | ol/li | div[contains(concat(" ", @class, " "), " accordion-content ")] ' \
                '| div[contains(concat(" ", @class, " "), " page ")]/div[contains(concat(" ", @class, " "), " layoutArea ")]/div[contains(concat(" ", @class, " "), " column ")]' # | div.page > div.layout > div.column'
     elems = elem.xpath(NODE_STR)
     result = ''
@@ -59,7 +59,13 @@ def serialize_elem(elem, response):
                 img_src = response.urljoin(e.xpath('@src').extract_first())
                 result += '[%s]{%s}' % (CAPTION_IMAGE, img_src)
                 result_cleaned += img_src
-            elif tag_name in ['p', 'li', 'div']:
+            elif tag_name == 'li':
+                p_content, p_content_cleaned = serialize_elem(e, response)
+                if p_content != '':
+                    result += '\n\n * ' + p_content
+                if p_content_cleaned != '':
+                    result_cleaned += '\n\n * ' + p_content_cleaned
+            elif tag_name in ['p', 'div']:
                 p_content, p_content_cleaned = serialize_elem(e, response)
                 if p_content != '':
                     result += '\n\n' + p_content
