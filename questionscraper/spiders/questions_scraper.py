@@ -26,18 +26,21 @@ def serialize_elem(elem, response):
     elems = elem.xpath(NODE_STR)
     result = ''
     result_cleaned = ''
+    block_prefix = ['\n\n', '\n\n']
+    inline_prefix = [' ', ' ']
     for e in elems:
         tag_name = e.xpath('name()').extract_first()
         if tag_name is None:
             text = e.extract()
-            result += text or ''
-            result_cleaned += text or ''
+            if text is not None:
+                result += inline_prefix[0] + text
+                result_cleaned += inline_prefix[1] + text
             #print('TEXT %s' % text)
         else:
             #print('TAG %s %s' % (tag_name, str(e.extract())))
             if tag_name == 'br':
-                result += '\n'
-                result_cleaned += '\n'
+                result += block_prefix[0]
+                result_cleaned += block_prefix[1]
             elif tag_name == 'a':
                 a_text = e.xpath('text()').extract_first()
                 href = response.urljoin(e.xpath('@href').extract_first())
@@ -54,7 +57,7 @@ def serialize_elem(elem, response):
 
             elif tag_name == 'blockquote':
                 blockquote_content = serialize_elem(e, response)
-                result += '\n[' + CAPTION_BLOCKQUOTE + ']{' + blockquote_content[0] + '}'
+                result += block_prefix[0] + '[' + CAPTION_BLOCKQUOTE + ']{' + blockquote_content[0] + '}'
             elif tag_name == 'img':
                 img_src = response.urljoin(e.xpath('@src').extract_first())
                 result += '[%s]{%s}' % (CAPTION_IMAGE, img_src)
@@ -62,21 +65,21 @@ def serialize_elem(elem, response):
             elif tag_name == 'li':
                 p_content, p_content_cleaned = serialize_elem(e, response)
                 if p_content != '':
-                    result += '\n\n * ' + p_content
+                    result += block_prefix[0] + ' * ' + p_content
                 if p_content_cleaned != '':
-                    result_cleaned += '\n\n * ' + p_content_cleaned
+                    result_cleaned += block_prefix[1] + ' * ' + p_content_cleaned
             elif tag_name in ['p', 'div']:
                 p_content, p_content_cleaned = serialize_elem(e, response)
                 if p_content != '':
-                    result += '\n\n' + p_content
+                    result += block_prefix[0] + p_content
                 if p_content_cleaned != '':
-                    result_cleaned += '\n\n' + p_content_cleaned
+                    result_cleaned += block_prefix[1] + p_content_cleaned
             elif tag_name in ['span', 'font', 'strong']:
                 s_content, s_content_cleaned = serialize_elem(e, response)
                 if s_content != '':
-                    result += ' ' + s_content
+                    result += inline_prefix[0] + s_content
                 if s_content_cleaned != '':
-                    result_cleaned += ' ' + s_content_cleaned
+                    result_cleaned += inline_prefix[1] + s_content_cleaned
             else:
                 result += '[%s]{%s} ' % (CAPTION_UNKNOWN, e.extract())
     return result.replace('\u00a0', ' ').strip(), result_cleaned.replace('\u00a0', ' ').strip()
@@ -100,6 +103,8 @@ def process_message_view(message, response):
     if message_content.extract_first() is None:
         message_content = message.css('.lia-message-body-content')
     text, text_cleaned = serialize_elem(message_content, response)
+    # replace double spaces (were inserted between inline elements)
+    text_cleaned = text_cleaned.replace('  ', ' ')
     result['content'] = text.strip()
     result['content_cleaned'] = text_cleaned.strip()
 
