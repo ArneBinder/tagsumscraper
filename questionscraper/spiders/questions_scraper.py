@@ -113,6 +113,8 @@ def process_message_view(message, response):
 
     result['url'] = get_message_url(message, response)
     result['solution_accepted_by'] = message.css('.lia-component-solution-info .solution-accepter > a::text').extract_first()
+    solution_accepter_text = ' '.join(message.css('.lia-component-solution-info .solution-accepter::text').extract()).strip()
+    result['solution_accepted_by_telekom'] = solution_accepter_text.endswith('(Telekom hilft Team)')
 
     #content_wo_divs = message_content.xpath('*[name() != "div"] | text()')
     content_wo_signature = message_content.xpath('*[not(contains(concat(" ", @class, " "), " lia-message-signature "))] | text()')
