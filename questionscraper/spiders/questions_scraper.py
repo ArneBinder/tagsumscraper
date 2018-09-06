@@ -13,6 +13,8 @@ URL_MAIN = 'https://telekomhilft.telekom.de'
 CAPTION_IMAGE = 'IMAGE'
 CAPTION_BLOCKQUOTE = 'BLOCKQUOTE'
 CAPTION_UNKNOWN = 'UNKNOWN'
+CAPTION_LINK = 'LINK'
+CAPTION_LINK_PROFILE = 'LINK_PROFILE'
 
 
 def get_message_url(message, response):
@@ -44,15 +46,19 @@ def serialize_elem(elem, response):
             elif tag_name == 'a':
                 a_text = e.xpath('text()').extract_first()
                 href = response.urljoin(e.xpath('@href').extract_first())
-                result += '[%s]{%s}' % (a_text, response.urljoin(href))
 
                 if a_text is None:
+                    result += '[%s]{%s}{%s}' % (CAPTION_LINK, response.urljoin(href), a_text)
                     result_cleaned += href
                 elif 'user/viewprofilepage/user-id' in href:
+                    result += '[%s]{%s}{%s}' % (CAPTION_LINK_PROFILE, response.urljoin(href), a_text)
+                    #result += a_text
                     result_cleaned += a_text
                 elif len(a_text) > 3 and href.startswith(a_text[:-3]):
+                    result += '[%s]{%s}{%s}' % (CAPTION_LINK, response.urljoin(href), a_text)
                     result_cleaned += href
                 else:
+                    result += '[%s]{%s}{%s}' % (CAPTION_LINK, response.urljoin(href), a_text)
                     result_cleaned += '%s [%s]' % (a_text, href)
 
             elif tag_name == 'blockquote':
@@ -110,11 +116,19 @@ def process_message_view(message, response):
 
     result['has_quote'] = '[%s]' % CAPTION_BLOCKQUOTE in result['content']
     result['has_image'] = '[%s]' % CAPTION_IMAGE in result['content']
+    result['has_link'] = '[%s]' % CAPTION_LINK in result['content']
 
     result['url'] = get_message_url(message, response)
     result['solution_accepted_by'] = message.css('.lia-component-solution-info .solution-accepter > a::text').extract_first()
-    solution_accepter_text = ' '.join(message.css('.lia-component-solution-info .solution-accepter::text').extract()).strip()
-    result['solution_accepted_by_telekom'] = solution_accepter_text.endswith('(Telekom hilft Team)')
+    solution_accepter_text_list = message.css('.lia-component-solution-info .solution-accepter::text').extract()
+    if len(solution_accepter_text_list) > 0:
+        result['solution_accepted_by_text'] = solution_accepter_text_list[-1].strip()
+    else:
+        result['solution_accepted_by_text'] = None
+    if result['solution_accepted_by'] is not None:
+        assert result['solution_accepted_by_text'] is not None, \
+            'answer marked as solution by %s, but no additional solution_accepted_by_text given' \
+            % result['solution_accepted_by']
 
     #content_wo_divs = message_content.xpath('*[name() != "div"] | text()')
     content_wo_signature = message_content.xpath('*[not(contains(concat(" ", @class, " "), " lia-message-signature "))] | text()')

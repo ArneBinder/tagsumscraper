@@ -28,7 +28,7 @@ def get_intents_from_tsv(path, filter_columns=None, scrape_flag_column=None, scr
         assert len(answer_cols) == 0 or len(question_cols) == 0, 'found question (#%d) AND answer link columns (#%d) in %s, but expected just questions OR answers' % (len(question_cols), len(answer_cols), path)
         link_cols = answer_cols + question_cols
         for row in reader:
-            skip = scrape_flag_column is not None and row[scrape_flag_column].strip() != scrape_flag_true
+            skip = scrape_flag_column is not None and (row[scrape_flag_column] is None or row[scrape_flag_column].strip() != scrape_flag_true)
             if skip:
                 #print(row)
                 continue
