@@ -1,0 +1,152 @@
+{
+	"name": "Summary_v03 dynC",
+	"title": "Create a summary v03",
+	"description": "<p>Please create a summary of the following <b>fora</b>.</p>",
+	"category": "SURVEY",
+	"styleUrl": "https://dfki-lt-re-group.bitbucket.io/dtagsum/dtagsum_crowdee_styling.css",
+	"maxAssignments": 100,
+	"assignmentDurationInSec": 1800,
+	"averageAssignmentDurationInSec": 450,
+	"autoApproval": {
+		"autoApprovalDelayInSec": 1
+	},
+	"clientRequirements": {
+		"minVersion": 99999
+	},
+	"language": "EN",
+	"settings": {
+		"showTimer": false,
+		"logType": "FINE"
+	},
+	"taskGenerator": {
+		"repetitions": 5
+	},
+	"styleURL": "...",
+	"rewards": [{
+			"currency": "EUR",
+			"amount": 1.30
+		}, {
+			"currency": "POINTS",
+			"amount": 30.0
+		}
+	],
+	"verificationCode": "N9BXC",
+	"questions": [{
+			"questionTitle": "Deine Aufgabe",
+			"isRequired": true,
+			"formatString": "<p><strong>Bitte lies diese Anfrage an die Community (gestellt im Forum) durch:</strong></p> <p><media id=\"query\" /></p><hr /><p>&nbsp; </p> <p><strong>Folgende L&ouml;sungen wurden zu &auml;hnlichen Fragen im Forum vorgeschlagen:</strong></p> <table> <tbody> <tr> <td> <media id=\"Post1\" /></td> <td> <media id=\"Post2\" /></td> </tr><tr> <td> <media id=\"Post3\" /></td> <td>  <media id=\"Post4\" /></td> </tr> <tr> <td> <media id=\"Post5\" /></td> <td> <media id=\"Post6\" /></td> </tr><tr> <td> <media id=\"Post7\" /></td> <td>  <media id=\"Post8\" /></td> </tr> <tr> <td> <media id=\"Post9\" /></td> <td> <media id=\"Post10\" /></td> </tr></tbody> </table> <h3>&nbsp;</h3> <h3>Deine Aufgabe:</h3> <p><strong>Bitte kopiere <big><b>ALLE</b></big> für dich relevanten Sätze aus allen Post heraus und füge sie untereinander in das folgende Textfeld ein:</strong></p> <p>&nbsp;</p></p>",
+			"dynamicContentIdentifiers": ["Post1", "Post2", "Post3", "Post4", "Post5", "Post6", "Post7", "Post8", "Post9", "Post10", "query"],
+			"answerSpecification": {
+				"type": "FREETEXT",
+				"isRichText": true,
+				"length": 1000,
+				"numberOfLinesSuggestion": 10
+			},
+			"name": "getAllSentences"
+		},{
+			"questionTitle": "Hello",
+			"isRequired": false,
+			"formatString": "<p><strong>Bitte lies diese Anfrage an die Community (gestellt im Forum) durch:</strong></p> <p><media id=\"query\" /></p><hr /><p>&nbsp; </p> <p><strong>Folgende L&ouml;sungen wurden zu &auml;hnlichen Fragen im Forum vorgeschlagen:</strong></p> <table> <tbody> <tr> <td> <media id=\"Post1\" /></td> <td> <media id=\"Post2\" /></td> </tr><tr> <td> <media id=\"Post3\" /></td> <td>  <media id=\"Post4\" /></td> </tr> <tr> <td> <media id=\"Post5\" /></td> <td> <media id=\"Post6\" /></td> </tr><tr> <td> <media id=\"Post7\" /></td> <td>  <media id=\"Post8\" /></td> </tr> <tr> <td> <media id=\"Post9\" /></td> <td> <media id=\"Post10\" /></td> </tr></tbody> </table> <h3>&nbsp;</h3> <h3>Deine Aufgabe:</h3> <p><strong>Bitte stelle durch Copy-Paste der 3 relevantesten Aussagen bzw. S&auml;tzen aus den oben angezeiten Posts eine Zusammenfassung zuammen:</strong></p> <p>&nbsp;</p></p>",
+			"dynamicContentIdentifiers": ["Post1", "Post2", "Post3", "Post4", "Post5", "Post6", "Post7", "Post8", "Post9", "Post10", "query"],
+			"answerSpecification": {
+				"type": "FREETEXT",
+				"isRichText": true,
+				"length": 1000,
+				"numberOfLinesSuggestion": 5
+			},
+			"name": "getNSentences"
+		}, {
+			"questionTitle": "Thanks!",
+			"isRequired": false,
+			"formatString": "<p>... </p><p>Many thanks",
+			"answerSpecification": {
+				"type": "INFO"
+			},
+			"name": "thanks"
+		}
+	],
+	"dynamicContentGroups": [{
+			"groupIdentifier": "groupIdentifier1",
+			"dynamicContentIdentifiers": ["Post1", "Post2", "Post3", "Post4", "Post5", "Post6", "Post7", "Post8", "Post9", "Post10", "query"]
+		}
+	],
+	"dynamicContent": [{
+			"identifier": "Post1",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. <br>(Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen <br>dann werden deine <br>anschlusdaten geladen ... <ul><li>Satz1</li><li>Satz 2.</li></ul></blockquote>  <ul><li>Satz1</li><li>Satz 2.</li></ul>",
+				"Post 1 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post2",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte oben links uf die magenta schrift zuhause un dann werden deine daten neu geladen...dann unter mein bestand uf deinen via funk tarif uf anschlus verwalten klicken k1 ..png .. dann kommst du auf die n&auml;chste seite wo au das volumen von deinem via funk tarif angezeigt wird...</blockquote>",
+				"Post 2 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post3",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>neuer Post.</blockquote>",
+				"Post 3 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post4",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte </p> <p><img src=\"https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png\" alt=\"\" width=\"272\" height=\"92\" /></blockquote>",
+				"Post 4 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post5",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte </p> <p><img src=\"https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png\" alt=\"\" width=\"272\" height=\"92\" /></blockquote>",
+				"Post 5 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post6",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte </p> <p><img src=\"https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png\" alt=\"\" width=\"272\" height=\"92\" /></blockquote>",
+				"Post 6 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post7",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte </p> <p><img src=\"https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png\" alt=\"\" width=\"272\" height=\"92\" /></blockquote>",
+				"Post 7 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post8",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte </p> <p><img src=\"https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png\" alt=\"\" width=\"272\" height=\"92\" /></blockquote>",
+				"Post 8 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post9",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte </p> <p><img src=\"https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png\" alt=\"\" width=\"272\" height=\"92\" /></blockquote>",
+				"Post 9 des 2. Tasks"
+			]
+		}, {
+			"identifier": "Post10",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>L&ouml;sung Akzeptiert von Irina K. (Telekom hilft Team) am &lrm;16.02.2017 15:44</strong></p> <p>Hy tagchen Un herzlich willkommen hier @Karlfried Huland bitte einmal ins kundencenter festnetz einloggen dann werden deine anschlusdaten geladen ... wenn deine anschlusdaten net angezeigt werden klicke bitte bitte </p> <p><img src=\"https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png\" alt=\"\" width=\"272\" height=\"92\" /></blockquote>",
+				"Post 10 des 2. Tasks"
+			]
+		}, {
+			"identifier": "query",
+			"type": "TEXT",
+			"values": [
+				"<blockquote>Seit 14.2 ist mein Internet immer langsamer geworden, unter der Behauptung mein Datenvolumen sei verbraucht, was ich bezweifele und nicht &uuml;berpr&uuml;fen kann. Ein weiterer Zukauf soll nach Auskunft der technik nicht m&ouml;glich sein. Ich f&uuml;hle mich betrogen.</blockquote>",
+				"Query  2 .... "
+			]
+		}
+	]
+}
