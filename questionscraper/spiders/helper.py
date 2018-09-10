@@ -89,15 +89,18 @@ def create_sql_inserts_questions(directory='questions'):
     out_dir=('path to out_dir', 'option', 'o', str),
     scraped_questions_jsonl=('path to scraped_questions_jsonl', 'option', 'q', str),
     scraped_answers_jsonl=('path to scraped_answers_jsonl', 'option', 'a', str),
-    dont_split_sentences=('count of produced index files', 'flag')
+    split_sentences=('create split-sentences field', 'flag')
 )
-def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=None, scraped_answers_jsonl=None, dont_split_sentences=False):
-    logging.info('intents_jsonl=%s  out_dir=%s  scraped_questions_jsonl=%s  scraped_answers_jsonl=%s' % (intents_jsonl, out_dir, scraped_questions_jsonl, scraped_answers_jsonl))
-    if not dont_split_sentences:
+def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=None, scraped_answers_jsonl=None,
+                             split_sentences=False):
+    logging.info('intents_jsonl=%s  out_dir=%s  scraped_questions_jsonl=%s  scraped_answers_jsonl=%s'
+                 % (intents_jsonl, out_dir, scraped_questions_jsonl, scraped_answers_jsonl))
+    if split_sentences:
         nlp = spacy.load('de')
         logging.info('german spacy model loaded successfully')
     intents = load_jl(intents_jsonl)
-    assert scraped_questions_jsonl is None or scraped_answers_jsonl is None, 'please provide just one question OR answer file'
+    assert scraped_questions_jsonl is None or scraped_answers_jsonl is None, \
+        'please provide just one question OR answer file'
     if scraped_answers_jsonl is not None:
         answers = load_jl(scraped_answers_jsonl, key='url')
         for i in range(len(intents)):
@@ -124,9 +127,8 @@ def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=Non
                         intents[i]['questions'][j]['nbr_answers_relevant'] += 1
                     else:
                         intents[i]['questions'][j]['answers'][k]['is_relevant'] = False
-            answers = flatten([[a for a in q['answers'] if not a['has_quote']] for q in intents[i]['questions']])
-            answers_relevant = flatten(
-                [[a for a in q['answers'] if not a['has_quote'] and a['is_relevant']] for q in intents[i]['questions']])
+            answers = flatten([[a for a in q['answers']] for q in intents[i]['questions']])
+            answers_relevant = flatten([[a for a in q['answers'] if a['is_relevant']] for q in intents[i]['questions']])
             intents[i]['answers_plain'] = '\n\n'.join([a['content_cleaned'] for a in answers])
             intents[i]['answers_plain_relevant'] = '\n\n'.join([a['content_cleaned'] for a in answers_relevant])
 
@@ -144,7 +146,7 @@ def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=Non
             intents[i]['answers_plain_marked'] = join_answers_marked(answers)
             intents[i]['answers_plain_marked_relevant'] = join_answers_marked(answers_relevant)
 
-            if not dont_split_sentences:
+            if split_sentences:
                 intents[i]['answers_plain_marked_sentences'] = join_answers_marked(answers, split_sentences=True)
                 intents[i]['answers_plain_marked_sentences_relevant'] = join_answers_marked(answers_relevant, split_sentences=True)
 
