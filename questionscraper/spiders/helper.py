@@ -94,7 +94,7 @@ def join_answers_marked(answers, nlp=None):
             # where TYPE = [caption_text] and ALL_ARGUMENTS = {arg0}{arg1}...
             # LAST_ARGUMENT is required for splitting and should NOT be used any further
             assert 'PLACEHOLDER' not in a['content_cleaned'], 'PLACEHOLDER in content_cleaned'
-            parts = re.split(r'(\[[^\]]+\])(({[^}]*})+)', a['content_cleaned'])
+            parts = re.split(r'(\[[^\]]+\])(({{[^}]*}})+)', a['content_cleaned'])
             if len(parts) > 1:
                 parts_arranged = [(parts[i], parts[i + 1] + parts[i + 2]) for i in range(0, len(parts) - 1, 4)]
                 texts, captions_args = zip(*parts_arranged)
@@ -116,7 +116,7 @@ def join_answers_marked(answers, nlp=None):
             text_marked = '|\n\n'.join(paragraphs_marked)
             parts_marked = re.split(r'(PLACEHOLDER)', text_marked)
             assert len(parts_marked) == len(texts) + len(captions_args), 'wrong length'
-            merged = ''.join([parts_marked[i] + captions_args[i] for i in range(len(captions_args))] + [parts_marked[-1]])
+            merged = ''.join([parts_marked[i*2] + captions_args[i] for i in range(len(captions_args))] + [parts_marked[-1]])
             #parts_marked = [texts_marked[i] + captions_args[i] for i in range(len(captions_args))] + [texts_marked[-1]]
             #paragraphs_marked.append('|\n'.join([part for part in parts_marked if part.strip() != '']))
 
@@ -148,7 +148,7 @@ def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=Non
         if debug:
             os.environ['CORENLP_HOME'] = '/mnt/DATA2/TMP/stanford-corenlp-full-2018-02-27'
         logging.info('enable sentence splitting')
-        nlp = corenlp.CoreNLPClient(annotators="tokenize ssplit".split())#, endpoint="http://localhost:9002")
+        nlp = corenlp.CoreNLPClient(annotators="tokenize ssplit".split(), endpoint="http://localhost:9001")
     else:
         nlp = None
     #try:
