@@ -3,7 +3,9 @@ import json
 import logging
 import os
 from pathlib import Path
-import spacy
+
+import corenlp
+#import spacy
 import re
 import plac
 
@@ -84,20 +86,72 @@ def create_sql_inserts_questions(directory='questions'):
                        scraped_questions_jsonl=os.path.join(directory, 'scraped.jl'), insert=False)
 
 
+def join_answers_marked(answers, nlp=None):
+    res = []
+    if nlp is not None:
+        for a in answers:
+            # re.split returns: TEXT, CAPTION, ALL_ARGUMENTS, LAST_ARGUMENT, TEXT, ..., TEXTAFTER
+            # where TYPE = [caption_text] and ALL_ARGUMENTS = {arg0}{arg1}...
+            # LAST_ARGUMENT is required for splitting and should NOT be used any further
+            assert 'PLACEHOLDER' not in a['content_cleaned'], 'PLACEHOLDER in content_cleaned'
+            parts = re.split(r'(\[[^\]]+\])(({[^}]*})+)', a['content_cleaned'])
+            if len(parts) > 1:
+                parts_arranged = [(parts[i], parts[i + 1] + parts[i + 2]) for i in range(0, len(parts) - 1, 4)]
+                texts, captions_args = zip(*parts_arranged)
+                # append TEXTAFTER
+                texts += (parts[-1],)
+            else:
+                texts, captions_args = (parts[0],), ()
+            text_placeholders = ''.join(['%sPLACEHOLDER' % texts[i] for i in range(len(captions_args))] + [texts[-1]])
+            #texts_marked = []
+            #for text in texts:
+            paragraphs = [p for p in text_placeholders.split('\n\n') if p.strip() != '']
+            paragraphs_marked = []
+            for p in paragraphs:
+                if p.strip() != '':
+                    ann = nlp.annotate(p)
+                    paragraphs_marked.append('|\n'.join([corenlp.to_text(s) for s in ann.sentence]))
+                #else:
+                #    paragraphs_marked.append(p)
+            text_marked = '|\n\n'.join(paragraphs_marked)
+            parts_marked = re.split(r'(PLACEHOLDER)', text_marked)
+            assert len(parts_marked) == len(texts) + len(captions_args), 'wrong length'
+            merged = ''.join([parts_marked[i] + captions_args[i] for i in range(len(captions_args))] + [parts_marked[-1]])
+            #parts_marked = [texts_marked[i] + captions_args[i] for i in range(len(captions_args))] + [texts_marked[-1]]
+            #paragraphs_marked.append('|\n'.join([part for part in parts_marked if part.strip() != '']))
+
+
+            #paragraphs = ['|\n'.join(map(lambda x: re.sub(r' +', ' ', str(x).strip().replace('\n', ' ')), nlp(p).sents))
+            #              for p in a['content_cleaned'].split('\n\n') if p.strip() != '']
+            res.append('----- %s -----\n%s' % (a['url'], merged))
+        return '|\n\n'.join(res)
+    else:
+        res = ['----- %s -----\n%s' % (a['url'], a['content_cleaned']) for a in answers]
+        return '\n\n'.join(res)
+
+
 @plac.annotations(
     intents_jsonl=('path to intents_jsonl', 'option', 'i', str),
     out_dir=('path to out_dir', 'option', 'o', str),
     scraped_questions_jsonl=('path to scraped_questions_jsonl', 'option', 'q', str),
     scraped_answers_jsonl=('path to scraped_answers_jsonl', 'option', 'a', str),
-    split_sentences=('create split-sentences field', 'flag')
+    split_sentences=('create split-sentences field', 'flag', 's'),
+    debug=('enable debug mode', 'flag', 'd'),
 )
 def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=None, scraped_answers_jsonl=None,
-                             split_sentences=False):
+                             split_sentences=False, debug=False):
     logging.info('intents_jsonl=%s  out_dir=%s  scraped_questions_jsonl=%s  scraped_answers_jsonl=%s'
                  % (intents_jsonl, out_dir, scraped_questions_jsonl, scraped_answers_jsonl))
     if split_sentences:
-        nlp = spacy.load('de')
-        logging.info('german spacy model loaded successfully')
+        #nlp = spacy.load('de')
+        #logging.info('german spacy model loaded successfully')
+        if debug:
+            os.environ['CORENLP_HOME'] = '/mnt/DATA2/TMP/stanford-corenlp-full-2018-02-27'
+        logging.info('enable sentence splitting')
+        nlp = corenlp.CoreNLPClient(annotators="tokenize ssplit".split())#, endpoint="http://localhost:9002")
+    else:
+        nlp = None
+    #try:
     intents = load_jl(intents_jsonl)
     assert scraped_questions_jsonl is None or scraped_answers_jsonl is None, \
         'please provide just one question OR answer file'
@@ -132,23 +186,14 @@ def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=Non
             intents[i]['answers_plain'] = '\n\n'.join([a['content_cleaned'] for a in answers])
             intents[i]['answers_plain_relevant'] = '\n\n'.join([a['content_cleaned'] for a in answers_relevant])
 
-            def join_answers_marked(answers, split_sentences=False):
-                res = []
-                if split_sentences:
-                    for a in answers:
-                        paragraphs = ['|\n'.join(map(lambda x:  re.sub(r' +', ' ', str(x).strip().replace('\n', ' ')), nlp(p).sents)) for p in a['content_cleaned'].split('\n\n') if p.strip() != '']
-                        res.append('----- %s -----\n%s' % (a['url'], '|\n\n'.join(paragraphs)))
-                    return '|\n\n'.join(res)
-                else:
-                    res = ['----- %s -----\n%s' % (a['url'], a['content_cleaned']) for a in answers]
-                    return '\n\n'.join(res)
+
 
             intents[i]['answers_plain_marked'] = join_answers_marked(answers)
             intents[i]['answers_plain_marked_relevant'] = join_answers_marked(answers_relevant)
 
             if split_sentences:
-                intents[i]['answers_plain_marked_sentences'] = join_answers_marked(answers, split_sentences=True)
-                intents[i]['answers_plain_marked_sentences_relevant'] = join_answers_marked(answers_relevant, split_sentences=True)
+                intents[i]['answers_plain_marked_sentences'] = join_answers_marked(answers, nlp=nlp)
+                intents[i]['answers_plain_marked_sentences_relevant'] = join_answers_marked(answers_relevant, nlp=nlp)
 
             intents[i]['nbr_answers'] = sum([q['nbr_answers'] for q in intents[i]['questions']])
             intents[i]['nbr_answers_relevant'] = sum([q['nbr_answers_relevant'] for q in intents[i]['questions']])
@@ -161,6 +206,11 @@ def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=Non
 
     else:
         raise AssertionError('please provide a question or answer file')
+    #finally:
+    #    pass
+        #if nlp is not None:
+        #    nlp.stop()
+
     fn_out_stem = (Path(out_dir) / (Path(intents_jsonl).stem + '_merged')).resolve()
     dump_jl(intents, fn_out_stem.with_suffix('.jl'))
     tsv_fieldnames = [k for k in intents[0].keys() if k not in ['answers', 'questions'] and not k.startswith('answers_plain')]
