@@ -21,13 +21,14 @@ def get_message_url(message, response):
     return response.urljoin(message.css('.lia-message-position-in-thread a::attr(href)').extract_first())
 
 
-def serialize_elem(elem, response, in_quote=False):
+def serialize_elem(elem, response, in_quote=False, embed_plain=False):
     NODE_STR = 'text() | br | a | span//img | p | span | font | strong | blockquote  ' \
                '| ul/li | ol/li | div[contains(concat(" ", @class, " "), " accordion-content ")] ' \
                '| div[contains(concat(" ", @class, " "), " page ")]/div[contains(concat(" ", @class, " "), " layoutArea ")]/div[contains(concat(" ", @class, " "), " column ")]' # | div.page > div.layout > div.column'
     elems = elem.xpath(NODE_STR)
-    result = ''
-    result_cleaned = ''
+    # content, content_cleaned, content_split
+    results = ['', '']
+    #result_cleaned = ''
     block_prefix = ['\n\n', '\n\n']
     inline_prefix = [' ', ' ']
     for e in elems:
@@ -35,72 +36,93 @@ def serialize_elem(elem, response, in_quote=False):
         if tag_name is None:
             text = e.extract()
             if text is not None:
-                result += inline_prefix[0] + text
-                result_cleaned += inline_prefix[1] + text
-            #print('TEXT %s' % text)
+                results[0] += inline_prefix[0] + text
+                results[1] += inline_prefix[1] + text
         else:
             #print('TAG %s %s' % (tag_name, str(e.extract())))
             if tag_name == 'br':
-                result += block_prefix[0]
-                result_cleaned += block_prefix[1]
+                results[0] += block_prefix[0]
+                results[1] += block_prefix[1]
             elif tag_name == 'a':
                 a_text = e.xpath('text()').extract_first()
                 href = response.urljoin(e.xpath('@href').extract_first())
 
                 if a_text is None:
-                    result += '[%s]{%s}{}' % (CAPTION_LINK, response.urljoin(href))
-                    result_cleaned += '[%s]{%s}' % (CAPTION_LINK, response.urljoin(href))
+                    if not (embed_plain and in_quote):
+                        results[0] += '[%s]{{%s}}' % (CAPTION_LINK, response.urljoin(href))
+                        results[1] += '[%s]{{%s}}' % (CAPTION_LINK, response.urljoin(href))
+                    else:
+                        results[0] += response.urljoin(href)
+                        results[1] += response.urljoin(href)
                 elif 'user/viewprofilepage/user-id' in href:
-                    result += '[%s]{%s}{%s}' % (CAPTION_LINK_PROFILE, response.urljoin(href), a_text.strip())
-                    #result += a_text
-                    result_cleaned += a_text
+                    if not (embed_plain and in_quote):
+                        results[0] += '[%s]{{%s}}{{%s}}' % (CAPTION_LINK_PROFILE, response.urljoin(href), a_text.strip())
+                        #results[1] += a_text
+                        results[1] += '[%s]{{%s}}{{%s}}' % (CAPTION_LINK_PROFILE, response.urljoin(href), a_text.strip())
+                    else:
+                        results[0] += a_text
+                        results[1] += a_text
                 #elif (len(a_text) > 4 and href.endswith(a_text[:-4])):
                 elif a_text in href or (len(a_text) > 3 and href.startswith(a_text[:-3])):
-                    result += '[%s]{%s}{%s}' % (CAPTION_LINK, response.urljoin(href), a_text.strip())
-                    result_cleaned += '[%s]{%s}' % (CAPTION_LINK, href)
+                    if not (embed_plain and in_quote):
+                        results[0] += '[%s]{{%s}}{{%s}}' % (CAPTION_LINK, response.urljoin(href), a_text.strip())
+                        results[1] += '[%s]{{%s}}' % (CAPTION_LINK, href)
+                    else:
+                        results[0] += response.urljoin(href)
+                        results[1] += response.urljoin(href)
                 else:
-                    result += '[%s]{%s}{%s}' % (CAPTION_LINK, response.urljoin(href), a_text.strip())
-                    result_cleaned += '[%s]{%s}{%s}' % (CAPTION_LINK, response.urljoin(href), a_text.strip())
+                    if not embed_plain:
+                        results[0] += '[%s]{{%s}}{{%s}}' % (CAPTION_LINK, response.urljoin(href), a_text.strip())
+                        results[1] += '[%s]{{%s}}{{%s}}' % (CAPTION_LINK, response.urljoin(href), a_text.strip())
+                    else:
+                        results[0] += response.urljoin(href)
+                        results[1] += response.urljoin(href)
 
             elif tag_name == 'blockquote':
                 if in_quote:
                     print('QUOTE-IN-QUOTE: %s' % response.url)
-                blockquote_content = serialize_elem(e, response, in_quote=True)
-                #result += block_prefix[0] + '[' + CAPTION_BLOCKQUOTE + ']{' + blockquote_content[0] + '}'
+                blockquote_contents = serialize_elem(e, response, in_quote=True, embed_plain=embed_plain)
                 if in_quote:
-                    result += blockquote_content[0]
-                    result_cleaned += blockquote_content[1]
+                    results[0] += blockquote_contents[0]
+                    results[1] += blockquote_contents[1]
                 else:
-                    result += '%s[%s]{%s}' % (block_prefix[0], CAPTION_BLOCKQUOTE, blockquote_content[0])
-                    result_cleaned += '%s[%s]{%s}' % (block_prefix[0], CAPTION_BLOCKQUOTE, blockquote_content[1])
+                    results[0] += '%s[%s]{{%s}}' % (block_prefix[0], CAPTION_BLOCKQUOTE, blockquote_contents[0])
+                    results[1] += '%s[%s]{{%s}}' % (block_prefix[0], CAPTION_BLOCKQUOTE, blockquote_contents[1])
             elif tag_name == 'img':
                 img_src = response.urljoin(e.xpath('@src').extract_first())
-                result += '[%s]{%s}' % (CAPTION_IMAGE, img_src)
-                result_cleaned += '[%s]{%s}' % (CAPTION_IMAGE, img_src)
+                if not (embed_plain and in_quote):
+                    results[0] += '[%s]{{%s}}' % (CAPTION_IMAGE, img_src)
+                    results[1] += '[%s]{{%s}}' % (CAPTION_IMAGE, img_src)
+                else:
+                    results[0] += img_src
+                    results[1] += img_src
             elif tag_name == 'li':
-                p_content, p_content_cleaned = serialize_elem(e, response)
-                if p_content != '':
-                    result += block_prefix[0] + ' * ' + p_content
-                if p_content_cleaned != '':
-                    result_cleaned += block_prefix[1] + ' * ' + p_content_cleaned
+                p_contents = serialize_elem(e, response, in_quote=in_quote, embed_plain=embed_plain)
+                if p_contents[0] != '':
+                    results[0] += block_prefix[0] + ' * ' + p_contents[0]
+                if p_contents[1] != '':
+                    results[1] += block_prefix[1] + ' * ' + p_contents[1]
             elif tag_name in ['p', 'div']:
-                p_content, p_content_cleaned = serialize_elem(e, response)
-                if p_content != '':
-                    result += block_prefix[0] + p_content
-                if p_content_cleaned != '':
-                    result_cleaned += block_prefix[1] + p_content_cleaned
+                p_contents = serialize_elem(e, response, in_quote=in_quote, embed_plain=embed_plain)
+                if p_contents[0] != '':
+                    results[0] += block_prefix[0] + p_contents[0]
+                if p_contents[1] != '':
+                    results[1] += block_prefix[1] + p_contents[1]
             elif tag_name in ['span', 'font', 'strong']:
-                s_content, s_content_cleaned = serialize_elem(e, response)
-                if s_content != '':
-                    result += inline_prefix[0] + s_content
-                if s_content_cleaned != '':
-                    result_cleaned += inline_prefix[1] + s_content_cleaned
+                s_contents = serialize_elem(e, response, in_quote=in_quote, embed_plain=embed_plain)
+                if s_contents[0] != '':
+                    results[0] += inline_prefix[0] + s_contents[0]
+                if s_contents[1] != '':
+                    results[1] += inline_prefix[1] + s_contents[1]
             else:
-                result += '[%s]{%s} ' % (CAPTION_UNKNOWN, e.extract())
-    return result.replace('\u00a0', ' ').strip(), result_cleaned.replace('\u00a0', ' ').strip()
+                if not (embed_plain and in_quote):
+                    results[0] += '[%s]{{%s}} ' % (CAPTION_UNKNOWN, e.extract())
+                else:
+                    results[0] += e.extract()
+    return [res.replace('\u00a0', ' ').strip() for res in results]
 
 
-def process_message_view(message, response):
+def process_message_view(message, response, embed_plain=False):
 
     result = {}
     # get author data
@@ -117,7 +139,7 @@ def process_message_view(message, response):
     message_content = message.css('.lia-message-body-content .outerRichtextDiv')
     if message_content.extract_first() is None:
         message_content = message.css('.lia-message-body-content')
-    text, text_cleaned = serialize_elem(message_content, response)
+    text, text_cleaned = serialize_elem(message_content, response, embed_plain=embed_plain)
     # replace double spaces (were inserted between inline elements)
     text_cleaned = text_cleaned.replace('  ', ' ')
     result['content'] = text.strip()
