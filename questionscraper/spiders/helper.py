@@ -147,8 +147,11 @@ def merge_answers_to_intents(intents_jsonl, out_dir, scraped_questions_jsonl=Non
         #logging.info('german spacy model loaded successfully')
         if debug:
             os.environ['CORENLP_HOME'] = '/mnt/DATA2/TMP/stanford-corenlp-full-2018-02-27'
+
+        props = {'tokenize.language': 'de'}
+        #props = {'tokenize.language': 'en'}
         logging.info('enable sentence splitting')
-        nlp = corenlp.CoreNLPClient(annotators="tokenize ssplit".split(), endpoint="http://localhost:9001")
+        nlp = corenlp.CoreNLPClient(annotators="tokenize ssplit".split(), endpoint="http://localhost:9001", properties=props)
     else:
         nlp = None
     #try:
