@@ -3,6 +3,7 @@ import re
 import csv
 import json
 import html
+import plac
 from questionscraper.spiders.helper import load_jl
 from os import path
 
@@ -103,15 +104,19 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
     return posts + [query]
 
 
-if __name__ == "__main__":
-    #soup = html.escape('k\u00f6nnen')
-    #print(soup)
-    path_base = 'scrape_10'
-    tsv_sentences_fn = 'ARNE_LEO-Training-Example-Summaries-Intents.tsv'
-    intents_all_fn = 'intents_questions_10_merged.jl'
-    column_split_content = 'answers_plain_marked_relevant_NEW'
+def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
+         tsv_sentences_fn: ("tsv file containing the split sentences", 'option', 's')='ARNE_LEO-Training-Example-Summaries-Intents.tsv',
+         intents_all_fn: ("Jsonline file containing all intent data", 'option', 'i')='intents_questions_10_merged.jl',
+         summary_template_fn: ("Json file that will be used as template", 'option', 't')='Summary.template.json',
+         column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW'
+         ):
 
-    intents = load_jl(path.join(path_base, intents_all_fn))
+    template_marker = '.template'
+    assert template_marker in summary_template_fn, \
+        'summary_template_fn ("%s") has to contain the template marker ("%s")' % (summary_template_fn, template_marker)
+    summary_out_fn = summary_template_fn.replace(template_marker, '')
+
+    intents = load_jl(path.join(base_path, intents_all_fn))
     answers_all = {a['url']: a for a in answers_from_intents(intents)}
     #print('stats for answers_all:')
     #print('distinct posts: %i' % len(answers_all))
@@ -119,13 +124,16 @@ if __name__ == "__main__":
     #print('distinct posts with quote: %i' % len([url for url in answers_all if answers_all[url]['has_quote']]))
     #print('distinct posts with link: %i' % len([url for url in answers_all if answers_all[url]['has_link']]))
 
-    intents_split = {intent['Intent-ID']: {'Intent-Text': intent['Intent-Text'], 'answers_split': answer_from_concat(intent[column_split_content])} for intent in read_tsv(path.join(path_base, tsv_sentences_fn))}
-    with open(path.join('summary', 'Summary.template.json')) as f:
+    intents_split = {intent['Intent-ID']: {'Intent-Text': intent['Intent-Text'], 'answers_split': answer_from_concat(intent[column_split_content])} for intent in read_tsv(path.join(base_path, tsv_sentences_fn))}
+    with open(path.join(base_path, summary_template_fn)) as f:
         summary = json.load(f)
     summary['dynamicContent'] = intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts=10, max_queries=10)#, only_query_nbr=6)
     #with open('scrape_10/Summary_content.json', 'w') as f:
-    with codecs.open(path.join(path_base, 'Summary.json'), 'w', encoding='utf-8') as f:
+    with codecs.open(path.join(base_path, summary_out_fn), 'w', encoding='utf-8') as f:
         json.dump(summary, f, ensure_ascii=False, indent=4)
         #f.write(json_string)
         f.flush()
 
+
+if __name__ == "__main__":
+    plac.call(main)
