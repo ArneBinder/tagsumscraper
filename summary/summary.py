@@ -1,4 +1,5 @@
 import codecs
+import logging
 import re
 import csv
 import json
@@ -88,23 +89,37 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     return s
 
 
-def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_queries, only_query_nbr=None, format_as=FORMAT_LIST):
+def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_queries, dynamicContent_loaded=None,
+                                    only_query_nbr=None, format_as=FORMAT_LIST):
+    if dynamicContent_loaded is None:
+        dynamicContent_loaded = {}
     posts = [{'identifier': 'Post%i' % (i+1), 'type': 'TEXT', 'values': []} for i in range(nbr_posts)]
-    query = {'identifier': 'query', 'type': 'TEXT', 'values': []}
-    summary_good = {'identifier': 'summaryGood', 'type': 'TEXT', 'values': []}
-    summary_bad = {'identifier': 'summaryBad', 'type': 'TEXT', 'values': []}
+    if 'query' in dynamicContent_loaded:
+        logging.warning('"query" is already in dynamicContent, do not overwrite.')
+    if 'summaryGood' in dynamicContent_loaded:
+        logging.warning('"summaryGood" is already in dynamicContent, do not overwrite.')
+    if 'summaryBad' in dynamicContent_loaded:
+        logging.warning('"summaryBad" is already in dynamicContent, do not overwrite.')
+    if 'Post1' in dynamicContent_loaded:
+        logging.warning('"Post1" is already in dynamicContent, OVERWRITE all "Post<n>".')
+    query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
+    summary_good = {'identifier': 'summaryGood', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryGood']['values'] if 'summaryGood' in dynamicContent_loaded else []}
+    summary_bad = {'identifier': 'summaryBad', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryBad']['values'] if 'summaryBad' in dynamicContent_loaded else []}
     for i, intent_id in enumerate(intents_split):
         if i == max_queries:
             break
         if only_query_nbr is not None and i != only_query_nbr:
             continue
-        query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intents_split[intent_id]['Intent-Text']))
-        # TODO: change this!
-        current_summary_good = 'good DUMMY SUMMARY for intent %s' % intent_id
-        current_summary_bad = 'bad DUMMY SUMMARY for intent %s' % intent_id
+        if 'query' not in dynamicContent_loaded:
+            query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intents_split[intent_id]['Intent-Text']))
 
-        summary_good['values'].append('<div class=\"summary\">%s</div>' % current_summary_good)
-        summary_bad['values'].append('<div class=\"summary\">%s</div>' % current_summary_bad)
+        if 'summaryGood' not in dynamicContent_loaded:
+            current_summary_good = 'good DUMMY SUMMARY for intent %s' % intent_id
+            summary_good['values'].append('<div class=\"summary\">%s</div>' % current_summary_good)
+        if 'summaryBad' not in dynamicContent_loaded:
+            current_summary_bad = 'bad DUMMY SUMMARY for intent %s' % intent_id
+            summary_bad['values'].append('<div class=\"summary\">%s</div>' % current_summary_bad)
+
         current_answers_split_sorted = list(reversed(sorted([(url, intents_split[intent_id]['answers_split'][url]) for url in
                                                intents_split[intent_id]['answers_split']], key=lambda x: len(''.join(x[1])))))
         for post_pos in range(nbr_posts):
@@ -167,7 +182,8 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
 
     summary['dynamicContent'] = intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts=10,
                                                                 max_queries=max_queries, format_as=format_as,
-                                                                only_query_nbr=only_query)
+                                                                only_query_nbr=only_query,
+                                                                dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
     #with open('scrape_10/Summary_content.json', 'w') as f:
     with codecs.open(path.join(base_path, summary_out_fn), 'w', encoding='utf-8') as f:
         json.dump(summary, f, ensure_ascii=False, indent=4)
