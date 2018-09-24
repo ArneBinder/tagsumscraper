@@ -46,7 +46,15 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
         # s = content.replace('##', '<p><input type="checkbox" name="%s">' % meta['checkbox_name']).replace('||', '</p>')
         s = content.replace('##', '<p><span class="sentence">').replace('||', '</span></p>')
     elif format_as == FORMAT_CHECKBOXES:
-        s = content.replace('##', '<p><input type="checkbox" name="check">').replace('||', '</p>')
+        s_split = content.split('||')
+        s = ''
+        for i in range(len(s_split)):
+            if s_split[i].strip() != '':
+                if '[IMAGE]' in s_split[i] in s_split[i]:
+                    s += s_split[i].replace('##', '<p><input type="checkbox" name="check" disabled>') + '</p>'
+                else:
+                    s += s_split[i].replace('##', '<p><input type="checkbox" name="check">') + '</p>'
+        #s = content.replace('##', '<p><input type="checkbox" name="check">').replace('||', '</p>')
         #s = content.replace('##', '<p><span class="sentence">').replace('||', '</span></p>')
     else:
         s = html.escape(content)
@@ -130,7 +138,9 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          intents_all_fn: ("Jsonline file containing all intent data", 'option', 'i')='intents_questions_10_merged.jl',
          summary_template_fn: ("Json file that will be used as template", 'option', 't')='Summary.template.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
-         format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST
+         format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
+         max_queries: ("maximal number of queries", 'option', 'm', int)=10,
+         only_query: ("use only query with this number/index (zero based)", 'option', 'q', int)=None
          ):
 
     template_marker = '.template'
@@ -156,7 +166,8 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
     #    f.flush()
 
     summary['dynamicContent'] = intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts=10,
-                                                                max_queries=10, format_as=format_as)#, only_query_nbr=6)
+                                                                max_queries=max_queries, format_as=format_as,
+                                                                only_query_nbr=only_query)
     #with open('scrape_10/Summary_content.json', 'w') as f:
     with codecs.open(path.join(base_path, summary_out_fn), 'w', encoding='utf-8') as f:
         json.dump(summary, f, ensure_ascii=False, indent=4)
