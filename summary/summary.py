@@ -9,7 +9,7 @@ from os import path
 
 
 FORMAT_LIST = 'list'
-#FORMAT_CHECKBOXES = 'checkboxes'
+FORMAT_CHECKBOXES = 'checkboxes'
 FORMAT_PARAGRAPHS = 'paragraphs'
 
 
@@ -43,8 +43,11 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
         # add li elements
         s = s.replace('##', '<li><span class="sentence">').replace('||', '</span></li>')
     elif format_as == FORMAT_PARAGRAPHS:
-        #s = content.replace('##', '<p><input type="checkbox" name="%s">' % meta['checkbox_name']).replace('||', '</p>')
+        # s = content.replace('##', '<p><input type="checkbox" name="%s">' % meta['checkbox_name']).replace('||', '</p>')
         s = content.replace('##', '<p><span class="sentence">').replace('||', '</span></p>')
+    elif format_as == FORMAT_CHECKBOXES:
+        s = content.replace('##', '<p><input type="checkbox" name="check">').replace('||', '</p>')
+        #s = content.replace('##', '<p><span class="sentence">').replace('||', '</span></p>')
     else:
         s = html.escape(content)
     # replace links with captions
@@ -94,8 +97,8 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
 
         summary_good['values'].append('<div class=\"summary\">%s</div>' % current_summary_good)
         summary_bad['values'].append('<div class=\"summary\">%s</div>' % current_summary_bad)
-        current_answers_split_sorted = sorted([(url, intents_split[intent_id]['answers_split'][url]) for url in
-                                               intents_split[intent_id]['answers_split']], key=lambda x: len(''.join(x[1])))
+        current_answers_split_sorted = list(reversed(sorted([(url, intents_split[intent_id]['answers_split'][url]) for url in
+                                               intents_split[intent_id]['answers_split']], key=lambda x: len(''.join(x[1])))))
         for post_pos in range(nbr_posts):
             new_answer = ''
             #keys = list(intents_split[intent_id]['answers_split'].keys())
@@ -127,7 +130,7 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          intents_all_fn: ("Jsonline file containing all intent data", 'option', 'i')='intents_questions_10_merged.jl',
          summary_template_fn: ("Json file that will be used as template", 'option', 't')='Summary.template.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
-         format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS])=FORMAT_LIST
+         format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST
          ):
 
     template_marker = '.template'
