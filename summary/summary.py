@@ -13,6 +13,10 @@ FORMAT_LIST = 'list'
 FORMAT_CHECKBOXES = 'checkboxes'
 FORMAT_PARAGRAPHS = 'paragraphs'
 
+#logger = logging.getLogger()
+#logger.setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.INFO)
+
 
 def read_tsv(path):
     with open(path) as tsvfile:
@@ -105,6 +109,7 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
     query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
     summary_good = {'identifier': 'summaryGood', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryGood']['values'] if 'summaryGood' in dynamicContent_loaded else []}
     summary_bad = {'identifier': 'summaryBad', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryBad']['values'] if 'summaryBad' in dynamicContent_loaded else []}
+    all_l = []
     for i, intent_id in enumerate(intents_split):
         if i == max_queries:
             break
@@ -122,11 +127,13 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
 
         current_answers_split_sorted = list(reversed(sorted([(url, intents_split[intent_id]['answers_split'][url]) for url in
                                                intents_split[intent_id]['answers_split']], key=lambda x: len(''.join(x[1])))))
+        l = 0
         for post_pos in range(nbr_posts):
             new_answer = ''
             #keys = list(intents_split[intent_id]['answers_split'].keys())
             if post_pos < len(current_answers_split_sorted):
                 answer_full = answers_all[current_answers_split_sorted[post_pos][0]]
+                l += len(answer_full['content_cleaned'].split())
                 #answer_splits = prepare_for_html(current_answers_split_sorted[post_pos][1], as_list=True)
                 # remove post counts (like "(4)") at the end and convert to html
                 answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answers_split_sorted[post_pos][1]),
@@ -144,7 +151,8 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
                     new_answer = '<div class="answer">%s</div>' % new_answer
                 new_answer = question_title + new_answer
             posts[post_pos]['values'].append(new_answer)
-
+        all_l.append(l)
+    logging.info('lengths of all posts for all %i intents: %s' % (max_queries, str(all_l)))
     return posts + [query, summary_good, summary_bad]
 
 
