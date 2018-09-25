@@ -170,7 +170,7 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          summary_template_fn: ("Json file that will be used as template", 'option', 't')='Summary.template.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
-         max_queries: ("maximal number of queries", 'option', 'm', int)=-1,
+         max_queries: ("maximal number of queries. defaults to take all (-1)", 'option', 'm', int)=-1,
          only_queries: ("use only query with this number/index (zero based)", 'option', 'q', str)=None
          ):
 
