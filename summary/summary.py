@@ -7,6 +7,7 @@ import html
 import plac
 from questionscraper.spiders.helper import load_jl
 from os import path
+from bs4 import BeautifulSoup
 
 
 FORMAT_LIST = 'list'
@@ -93,17 +94,17 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     return s
 
 
-def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_queries, dynamicContent_loaded=None,
-                                    only_query_nbr=None, format_as=FORMAT_LIST):
+def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_queries=-1, dynamicContent_loaded=None,
+                                    only_query_nbrs=None, format_as=FORMAT_LIST):
     if dynamicContent_loaded is None:
         dynamicContent_loaded = {}
     posts = [{'identifier': 'Post%i' % (i+1), 'type': 'TEXT', 'values': []} for i in range(nbr_posts)]
     if 'query' in dynamicContent_loaded:
-        logging.warning('"query" is already in dynamicContent, do not overwrite.')
+        logging.warning('"query" is already in dynamicContent, do NOT overwrite.')
     if 'summaryGood' in dynamicContent_loaded:
-        logging.warning('"summaryGood" is already in dynamicContent, do not overwrite.')
+        logging.warning('"summaryGood" is already in dynamicContent, do NOT overwrite.')
     if 'summaryBad' in dynamicContent_loaded:
-        logging.warning('"summaryBad" is already in dynamicContent, do not overwrite.')
+        logging.warning('"summaryBad" is already in dynamicContent, do NOT overwrite.')
     if 'Post1' in dynamicContent_loaded:
         logging.warning('"Post1" is already in dynamicContent, OVERWRITE all "Post<n>".')
     query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
@@ -113,7 +114,7 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
     for i, intent_id in enumerate(intents_split):
         if i == max_queries:
             break
-        if only_query_nbr is not None and i != only_query_nbr:
+        if only_query_nbrs is not None and str(i) not in only_query_nbrs:
             continue
         if 'query' not in dynamicContent_loaded:
             query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intents_split[intent_id]['Intent-Text']))
@@ -125,34 +126,41 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
             current_summary_bad = 'bad DUMMY SUMMARY for intent %s' % intent_id
             summary_bad['values'].append('<div class=\"summary\">%s</div>' % current_summary_bad)
 
-        current_answers_split_sorted = list(reversed(sorted([(url, intents_split[intent_id]['answers_split'][url]) for url in
-                                               intents_split[intent_id]['answers_split']], key=lambda x: len(''.join(x[1])))))
-        l = 0
+        #current_answers_split_sorted = list(reversed(sorted([(url, intents_split[intent_id]['answers_split'][url]) for url in
+        #                                       intents_split[intent_id]['answers_split']], key=lambda x: len(''.join(x[1])))))
+        current_answers_split = [(url, intents_split[intent_id]['answers_split'][url]) for url in intents_split[intent_id]['answers_split']]
+        answers_html = []
+        for current_url, current_answer in current_answers_split:
+            answer_full = answers_all[current_url]
+            answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answer),
+                                             format_as=format_as)
+
+            new_answer = '<div class="answer-content">%s</div>' % answer_splits
+            question_title = '<div class="question-title">%s</div>' % answer_full['question']['title']
+
+            accepted_by = answer_full.get('solution_accepted_by', None)
+            accepted_by_text = answer_full.get('solution_accepted_by_text', None)
+            if accepted_by:
+                new_answer = '<div class="answer solution"><div class="solution-header">Lösung akzeptiert von %s %s</div>%s</div>' \
+                             % (accepted_by, accepted_by_text, new_answer)
+            else:
+                new_answer = '<div class="answer">%s</div>' % new_answer
+            answers_html.append(question_title + new_answer)
+
+        answers_html_with_parsed_text = [(html_doc, BeautifulSoup(html_doc, 'html.parser').get_text()) for html_doc in answers_html]
+        # use character count for sorting
+        answers_html_sorted = sorted(answers_html_with_parsed_text, key=lambda h_with_l: len(h_with_l[1]), reverse=True)
+        # use words count as length
+        l = sum(map(lambda x: len(x[1].strip().split()), answers_html_with_parsed_text))
         for post_pos in range(nbr_posts):
-            new_answer = ''
+            #new_answer = ''
             #keys = list(intents_split[intent_id]['answers_split'].keys())
-            if post_pos < len(current_answers_split_sorted):
-                answer_full = answers_all[current_answers_split_sorted[post_pos][0]]
-                l += len(answer_full['content_cleaned'].split())
-                #answer_splits = prepare_for_html(current_answers_split_sorted[post_pos][1], as_list=True)
-                # remove post counts (like "(4)") at the end and convert to html
-                answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answers_split_sorted[post_pos][1]),
-                                                 format_as=format_as)
-
-                new_answer = '<div class="answer-content">%s</div>' % answer_splits
-                question_title = '<div class="question-title">%s</div>' % answer_full['question']['title']
-
-                accepted_by = answer_full.get('solution_accepted_by', None)
-                accepted_by_text = answer_full.get('solution_accepted_by_text', None)
-                if accepted_by:
-                    new_answer = '<div class="answer solution"><div class="solution-header">Lösung akzeptiert von %s %s</div>%s</div>' \
-                                 % (accepted_by, accepted_by_text, new_answer)
-                else:
-                    new_answer = '<div class="answer">%s</div>' % new_answer
-                new_answer = question_title + new_answer
-            posts[post_pos]['values'].append(new_answer)
+            if post_pos < len(answers_html_sorted):
+                posts[post_pos]['values'].append(answers_html_sorted[post_pos][0])
+            else:
+                posts[post_pos]['values'].append('')
         all_l.append(l)
-    logging.info('lengths of all posts for all %i intents: %s' % (max_queries, str(all_l)))
+    logging.info('lengths of all posts for all %i intents: %s' % (len(all_l), str(all_l)))
     return posts + [query, summary_good, summary_bad]
 
 
@@ -162,8 +170,8 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          summary_template_fn: ("Json file that will be used as template", 'option', 't')='Summary.template.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
-         max_queries: ("maximal number of queries", 'option', 'm', int)=10,
-         only_query: ("use only query with this number/index (zero based)", 'option', 'q', int)=None
+         max_queries: ("maximal number of queries", 'option', 'm', int)=-1,
+         only_queries: ("use only query with this number/index (zero based)", 'option', 'q', str)=None
          ):
 
     template_marker = '.template'
@@ -190,7 +198,7 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
 
     summary['dynamicContent'] = intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts=10,
                                                                 max_queries=max_queries, format_as=format_as,
-                                                                only_query_nbr=only_query,
+                                                                only_query_nbrs=only_queries.strip().split(',') if only_queries is not None else None,
                                                                 dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
     #with open('scrape_10/Summary_content.json', 'w') as f:
     with codecs.open(path.join(base_path, summary_out_fn), 'w', encoding='utf-8') as f:
