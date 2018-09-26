@@ -107,6 +107,10 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
         logging.warning('"summaryBad" is already in dynamicContent, do NOT overwrite.')
     if 'Post1' in dynamicContent_loaded:
         logging.warning('"Post1" is already in dynamicContent, OVERWRITE all "Post<n>".')
+    # delete posts from loaded
+    for p in posts:
+        if p['identifier'] in dynamicContent_loaded:
+            del dynamicContent_loaded[p['identifier']]
     query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
     summary_good = {'identifier': 'summaryGood', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryGood']['values'] if 'summaryGood' in dynamicContent_loaded else []}
     summary_bad = {'identifier': 'summaryBad', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryBad']['values'] if 'summaryBad' in dynamicContent_loaded else []}
@@ -163,23 +167,26 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
                 posts[post_pos]['values'].append('')
         all_l.append(l)
     logging.info('lengths of all posts for all %i intents: %s' % (len(all_l), str(all_l)))
-    return posts + [query, summary_good, summary_bad]
+    new_dynamic_content = {dc['identifier']: dc for dc in posts + [query, summary_good, summary_bad]}
+    new_dynamic_content.update(dynamicContent_loaded)
+    return list(new_dynamic_content.values())
 
 
 def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          tsv_sentences_fn: ("tsv file containing the split sentences", 'option', 's')='ARNE_LEO-Training-Example-Summaries-Intents.tsv',
-         intents_all_fn: ("Jsonline file containing all intent data", 'option', 'i')='intents_questions_10_merged.jl',
-         summary_template_fn: ("Json file that will be used as template", 'option', 't')='Summary.template.json',
+         intents_all_fn: ("Jsonline file containing all intent data", 'option', 't')='intents_questions_10_merged.jl',
+         summary_in_fn: ("Json file that will be used as template", 'option', 'i')='Summary.template.json',
+         summary_out_fn: ("Json file that will be used as template", 'option', 'o') = 'Summary.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
          max_queries: ("maximal number of queries. defaults to take all (-1)", 'option', 'm', int)=-1,
          only_queries: ("use only query with this number/index (zero based)", 'option', 'q', str)=None
          ):
 
-    template_marker = '.template'
-    assert template_marker in summary_template_fn, \
-        'summary_template_fn ("%s") has to contain the template marker ("%s")' % (summary_template_fn, template_marker)
-    summary_out_fn = summary_template_fn.replace(template_marker, '')
+    #template_marker = '.template'
+    #assert template_marker in summary_template_fn, \
+    #    'summary_template_fn ("%s") has to contain the template marker ("%s")' % (summary_template_fn, template_marker)
+    #summary_out_fn = summary_template_fn.replace(template_marker, '')
 
     intents = load_jl(path.join(base_path, intents_all_fn))
     answers_all = {a['url']: a for a in answers_from_intents(intents)}
@@ -190,7 +197,7 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
     #print('distinct posts with link: %i' % len([url for url in answers_all if answers_all[url]['has_link']]))
 
     intents_split = {intent['Intent-ID']: {'Intent-Text': intent['Intent-Text'], 'answers_split': answer_from_concat(intent[column_split_content])} for intent in read_tsv(path.join(base_path, tsv_sentences_fn))}
-    with open(path.join(base_path, summary_template_fn)) as f:
+    with open(path.join(summary_in_fn)) as f:
         summary = json.load(f)
 
     #with codecs.open(path.join(base_path, 'debug.json'), 'w', encoding='utf-8') as f:
@@ -203,7 +210,7 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
                                                                 only_query_nbrs=only_queries.strip().split(',') if only_queries is not None else None,
                                                                 dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
     #with open('scrape_10/Summary_content.json', 'w') as f:
-    with codecs.open(path.join(base_path, summary_out_fn), 'w', encoding='utf-8') as f:
+    with codecs.open(summary_out_fn, 'w', encoding='utf-8') as f:
         json.dump(summary, f, ensure_ascii=False, indent=4)
         #f.write(json_string)
         f.flush()
