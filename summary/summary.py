@@ -148,8 +148,10 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
             answers_html.append(question_title + new_answer)
 
         answers_html_with_parsed_text = [(html_doc, BeautifulSoup(html_doc, 'html.parser').get_text()) for html_doc in answers_html]
-        # use character count for sorting
-        answers_html_sorted = sorted(answers_html_with_parsed_text, key=lambda h_with_l: len(h_with_l[1]), reverse=True)
+        ## use character count for sorting
+        #answers_html_sorted = sorted(answers_html_with_parsed_text, key=lambda h_with_l: len(h_with_l[1]), reverse=True)
+        # sort by umber of block elements, but give <div>s more weight
+        answers_html_sorted = sorted(answers_html_with_parsed_text, key=lambda h_with_l: 1.5 * h_with_l[0].count('<div') + h_with_l[0].count('<p') + h_with_l[0].count('<li'), reverse=True)
         # use words count as length
         l = sum(map(lambda x: len(x[1].strip().split()), answers_html_with_parsed_text))
         for post_pos in range(nbr_posts):
