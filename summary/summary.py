@@ -1,5 +1,6 @@
 import codecs
 import logging
+import os
 import re
 import csv
 import json
@@ -8,6 +9,7 @@ import plac
 from questionscraper.spiders.helper import load_jl
 from os import path
 from bs4 import BeautifulSoup
+from statistics import median
 
 
 FORMAT_LIST = 'list'
@@ -113,8 +115,8 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     return s
 
 
-def intents_split_to_dynamicContent(intents, nbr_posts, max_queries=-1, dynamicContent_loaded=None,
-                                    only_query_nbrs=None, format_as=FORMAT_LIST):
+def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=None,
+                                    only_intent_ids=None, format_as=FORMAT_LIST):
     if dynamicContent_loaded is None:
         dynamicContent_loaded = {}
     posts = [{'identifier': 'Post%i' % (i+1), 'type': 'TEXT', 'values': []} for i in range(nbr_posts)]
@@ -128,17 +130,17 @@ def intents_split_to_dynamicContent(intents, nbr_posts, max_queries=-1, dynamicC
             del dynamicContent_loaded[p['identifier']]
     query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
     all_l = []
-    for i, intent_id in enumerate(intents):
-        if i == max_queries:
-            break
-        if only_query_nbrs is not None and str(i) not in only_query_nbrs:
+    for intent in intents:
+        #if i == max_queries:
+        #    break
+        if only_intent_ids is not None and intent[INTENT_ID] not in only_intent_ids:
             continue
-        query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intents[intent_id][INTENT_TEXT]))
+        query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT]))
 
-        current_answers_split = [(url, intents[intent_id][ANSWERS_SPLIT][url]) for url in intents[intent_id][ANSWERS_SPLIT]]
+        current_answers_split = [(url,intent[ANSWERS_SPLIT][url]) for url in intent[ANSWERS_SPLIT]]
         answers_html = []
         for current_url, current_answer in current_answers_split:
-            answer_full = intents[intent_id][ANSWERS_ALL][current_url]
+            answer_full = intent[ANSWERS_ALL][current_url]
             answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answer),
                                              format_as=format_as)
 
@@ -173,25 +175,81 @@ def intents_split_to_dynamicContent(intents, nbr_posts, max_queries=-1, dynamicC
     return list(new_dynamic_content.values())
 
 
-def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
+def create_multiple_jobs(intents, summary, summary_out_fn, format_as, only_intent_ids):
+    nbr_words_query_median = median((len(intent[INTENT_TEXT].split()) for intent in intents))
+    nbr_words_posts_median = median((intent['nbr_words_relevant'] for intent in intents))
+
+    intents_selected = [[], [], [], []]
+    for intent in intents:
+        nbr_words_query = len(intent[INTENT_TEXT].split())
+        nbr_words_posts = intent['nbr_words_relevant']
+        if nbr_words_query < nbr_words_query_median and nbr_words_posts < nbr_words_posts_median:
+            intents_selected[0].append(intent)
+        elif nbr_words_query < nbr_words_query_median and nbr_words_posts >= nbr_words_posts_median:
+            intents_selected[1].append(intent)
+        elif nbr_words_query >= nbr_words_query_median and nbr_words_posts < nbr_words_posts_median:
+            intents_selected[2].append(intent)
+        elif nbr_words_query >= nbr_words_query_median and nbr_words_posts >= nbr_words_posts_median:
+            intents_selected[3].append(intent)
+        else:
+            raise AssertionError('This should not happen.')
+
+    dcs = [intents_split_to_dynamicContent(
+        current_intents, nbr_posts=10, format_as=format_as,
+        only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
+        dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})}) for current_intents in
+        intents_selected]
+    # summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
+    #                                                            #max_queries=max_queries,
+    #                                                            format_as=format_as,
+    #                                                            only_intent_ids=only_intents.strip().split(',') if only_intents is not None else None,
+    #                                                            dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
+    # with open('scrape_10/Summary_content.json', 'w') as f:
+
+    for i, dc in enumerate(dcs):
+        summary['dynamicContent'] = dc
+        with codecs.open('%s.%i' % (summary_out_fn, i), 'w', encoding='utf-8') as f:
+            json.dump(summary, f, ensure_ascii=False, indent=4)
+            # f.write(json_string)
+            f.flush()
+
+
+def create_single_job(intents, summary, summary_out_fn, format_as, only_intent_ids):
+    summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
+                                                                format_as=format_as,
+                                                                only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
+                                                                dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
+    #with open('scrape_10/Summary_content.json', 'w') as f:
+    with codecs.open(summary_out_fn, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, ensure_ascii=False, indent=4)
+        #f.write(json_string)
+        f.flush()
+
+
+def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single', 'multiple']),
+         base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          tsv_sentences_fn: ("tsv file containing the split sentences", 'option', 's')='ARNE_LEO-Training-Example-Summaries-Intents.tsv',
          intents_all_fn: ("Jsonline file containing all intent data", 'option', 't')='intents_questions_10_merged.jl',
          summary_in_fn: ("Json file that will be used as template", 'option', 'i')='Summary.template.json',
          summary_out_fn: ("Json file that will be used as template", 'option', 'o') = 'Summary.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
-         max_queries: ("maximal number of queries. defaults to take all (-1)", 'option', 'm', int)=-1,
-         only_queries: ("use only query with this number/index (zero based)", 'option', 'q', str)=None
+         #max_queries: ("maximal number of queries. defaults to take all (-1)", 'option', 'm', int)=-1,
+         only_intent_ids: ("use only intents with these ids", 'option', 'q', str)=None
          ):
 
     intents_all = {intent[INTENT_ID]: intent for intent in load_jl(path.join(base_path, intents_all_fn))}
-    intents = {}
+    intents = []
     for intent in read_tsv(path.join(base_path, tsv_sentences_fn)):
         intent_id = intent[INTENT_ID]
         intent.update(intents_all[intent_id])
         intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
         intent[ANSWERS_SPLIT] = answer_from_concat(intent[column_split_content])
-        intents[intent_id] = intent
+        #intents[intent_id] = intent
+        intents.append(intent)
+
+    with open(path.join(summary_in_fn)) as f:
+        summary = json.load(f)
 
     #answers_all = {a[URL]: a for a in answers_from_intents(intents)}
     #print('stats for answers_all:')
@@ -200,18 +258,12 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
     #print('distinct posts with quote: %i' % len([url for url in answers_all if answers_all[url]['has_quote']]))
     #print('distinct posts with link: %i' % len([url for url in answers_all if answers_all[url]['has_link']]))
 
-    with open(path.join(summary_in_fn)) as f:
-        summary = json.load(f)
-
-    summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
-                                                                max_queries=max_queries, format_as=format_as,
-                                                                only_query_nbrs=only_queries.strip().split(',') if only_queries is not None else None,
-                                                                dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
-    #with open('scrape_10/Summary_content.json', 'w') as f:
-    with codecs.open(summary_out_fn, 'w', encoding='utf-8') as f:
-        json.dump(summary, f, ensure_ascii=False, indent=4)
-        #f.write(json_string)
-        f.flush()
+    if mode == 'single':
+        create_single_job(intents, summary, summary_out_fn, format_as, only_intent_ids)
+    elif mode == 'multiple':
+        create_multiple_jobs(intents, summary, summary_out_fn, format_as, only_intent_ids)
+    else:
+        raise AssertionError('This should not happen.')
 
 
 if __name__ == "__main__":
