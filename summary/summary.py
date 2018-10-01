@@ -14,6 +14,16 @@ FORMAT_LIST = 'list'
 FORMAT_CHECKBOXES = 'checkboxes'
 FORMAT_PARAGRAPHS = 'paragraphs'
 
+ANSWERS_ALL = 'answers_all'
+ANSWERS_SPLIT = 'answers_split'
+INTENT_ID = 'Intent-ID'
+INTENT_TEXT = 'Intent-Text'
+QUESTIONS = 'questions'
+QUESTION = 'question'
+TITLE = 'title'
+ANSWERS = 'answers'
+URL = 'url'
+
 #logger = logging.getLogger()
 #logger.setLevel(logging.DEBUG)
 logging.getLogger().setLevel(logging.INFO)
@@ -37,10 +47,19 @@ def answer_from_concat(answer_concat):
 
 def answers_from_intents(intents):
     for intent in intents:
-        for q in intent['questions']:
-            for a in q['answers']:
-                a['question'] = q
+        for q in intent[QUESTIONS]:
+            for a in q[ANSWERS]:
+                a[QUESTION] = q
                 yield a
+
+
+def answers_dict_from_intent(intent):
+    res = {}
+    for q in intent[QUESTIONS]:
+        for a in q[ANSWERS]:
+            a[QUESTION] = q
+            res[a[URL]] = a
+    return res
 
 
 def prepare_for_html(content, format_as=FORMAT_LIST):
@@ -94,17 +113,17 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     return s
 
 
-def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_queries=-1, dynamicContent_loaded=None,
+def intents_split_to_dynamicContent(intents, nbr_posts, max_queries=-1, dynamicContent_loaded=None,
                                     only_query_nbrs=None, format_as=FORMAT_LIST):
     if dynamicContent_loaded is None:
         dynamicContent_loaded = {}
     posts = [{'identifier': 'Post%i' % (i+1), 'type': 'TEXT', 'values': []} for i in range(nbr_posts)]
     if 'query' in dynamicContent_loaded:
-        logging.warning('"query" is already in dynamicContent, do NOT overwrite.')
-    if 'summaryGood' in dynamicContent_loaded:
-        logging.warning('"summaryGood" is already in dynamicContent, do NOT overwrite.')
-    if 'summaryBad' in dynamicContent_loaded:
-        logging.warning('"summaryBad" is already in dynamicContent, do NOT overwrite.')
+        logging.warning('"query" is already in dynamicContent, OVERWRITE it.')
+    #if 'summaryGood' in dynamicContent_loaded:
+    #    logging.warning('"summaryGood" is already in dynamicContent, do NOT overwrite.')
+    #if 'summaryBad' in dynamicContent_loaded:
+    #    logging.warning('"summaryBad" is already in dynamicContent, do NOT overwrite.')
     if 'Post1' in dynamicContent_loaded:
         logging.warning('"Post1" is already in dynamicContent, OVERWRITE all "Post<n>".')
     # delete posts from loaded
@@ -112,35 +131,36 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
         if p['identifier'] in dynamicContent_loaded:
             del dynamicContent_loaded[p['identifier']]
     query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
-    summary_good = {'identifier': 'summaryGood', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryGood']['values'] if 'summaryGood' in dynamicContent_loaded else []}
-    summary_bad = {'identifier': 'summaryBad', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryBad']['values'] if 'summaryBad' in dynamicContent_loaded else []}
+    #summary_good = {'identifier': 'summaryGood', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryGood']['values'] if 'summaryGood' in dynamicContent_loaded else []}
+    #summary_bad = {'identifier': 'summaryBad', 'type': 'TEXT', 'values': dynamicContent_loaded['summaryBad']['values'] if 'summaryBad' in dynamicContent_loaded else []}
     all_l = []
-    for i, intent_id in enumerate(intents_split):
+    for i, intent_id in enumerate(intents):
         if i == max_queries:
             break
         if only_query_nbrs is not None and str(i) not in only_query_nbrs:
             continue
-        if 'query' not in dynamicContent_loaded:
-            query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intents_split[intent_id]['Intent-Text']))
+        #if 'query' not in dynamicContent_loaded:
+        query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intents[intent_id][INTENT_TEXT]))
 
-        if 'summaryGood' not in dynamicContent_loaded:
-            current_summary_good = 'good DUMMY SUMMARY for intent %s' % intent_id
-            summary_good['values'].append('<div class=\"summary\">%s</div>' % current_summary_good)
-        if 'summaryBad' not in dynamicContent_loaded:
-            current_summary_bad = 'bad DUMMY SUMMARY for intent %s' % intent_id
-            summary_bad['values'].append('<div class=\"summary\">%s</div>' % current_summary_bad)
+        #if 'summaryGood' not in dynamicContent_loaded:
+        #    current_summary_good = 'good DUMMY SUMMARY for intent %s' % intent_id
+        #    summary_good['values'].append('<div class=\"summary\">%s</div>' % current_summary_good)
+        #if 'summaryBad' not in dynamicContent_loaded:
+        #    current_summary_bad = 'bad DUMMY SUMMARY for intent %s' % intent_id
+        #    summary_bad['values'].append('<div class=\"summary\">%s</div>' % current_summary_bad)
 
         #current_answers_split_sorted = list(reversed(sorted([(url, intents_split[intent_id]['answers_split'][url]) for url in
         #                                       intents_split[intent_id]['answers_split']], key=lambda x: len(''.join(x[1])))))
-        current_answers_split = [(url, intents_split[intent_id]['answers_split'][url]) for url in intents_split[intent_id]['answers_split']]
+        current_answers_split = [(url, intents[intent_id][ANSWERS_SPLIT][url]) for url in intents[intent_id][ANSWERS_SPLIT]]
         answers_html = []
         for current_url, current_answer in current_answers_split:
-            answer_full = answers_all[current_url]
+            #answer_full = answers_all[current_url]
+            answer_full = intents[intent_id][ANSWERS_ALL][current_url]
             answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answer),
                                              format_as=format_as)
 
             new_answer = '<div class="answer-content">%s</div>' % answer_splits
-            question_title = '<div class="question-title">%s</div>' % answer_full['question']['title']
+            question_title = '<div class="question-title">%s</div>' % answer_full[QUESTION][TITLE]
 
             accepted_by = answer_full.get('solution_accepted_by', None)
             accepted_by_text = answer_full.get('solution_accepted_by_text', None)
@@ -167,7 +187,7 @@ def intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts, max_q
                 posts[post_pos]['values'].append('')
         all_l.append(l)
     logging.info('lengths of all posts for all %i intents: %s' % (len(all_l), str(all_l)))
-    new_dynamic_content = {dc['identifier']: dc for dc in posts + [query, summary_good, summary_bad]}
+    new_dynamic_content = {dc['identifier']: dc for dc in posts + [query]} #, summary_good, summary_bad]}
     new_dynamic_content.update(dynamicContent_loaded)
     return list(new_dynamic_content.values())
 
@@ -188,15 +208,27 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
     #    'summary_template_fn ("%s") has to contain the template marker ("%s")' % (summary_template_fn, template_marker)
     #summary_out_fn = summary_template_fn.replace(template_marker, '')
 
-    intents = load_jl(path.join(base_path, intents_all_fn))
-    answers_all = {a['url']: a for a in answers_from_intents(intents)}
+    #intents_split = {intent['Intent-ID']: {'Intent-Text': intent['Intent-Text'],
+    #                                       'answers_split': answer_from_concat(intent[column_split_content])} for intent
+    #                 in read_tsv(path.join(base_path, tsv_sentences_fn))}
+    #intents_split = read_tsv(path.join(base_path, tsv_sentences_fn))
+
+    intents_all = {intent[INTENT_ID]: intent for intent in load_jl(path.join(base_path, intents_all_fn))}
+    intents = {}
+    for intent in read_tsv(path.join(base_path, tsv_sentences_fn)):
+        intent_id = intent[INTENT_ID]
+        intent.update(intents_all[intent_id])
+        intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
+        intent[ANSWERS_SPLIT] = answer_from_concat(intent[column_split_content])
+        intents[intent_id] = intent
+
+    #answers_all = {a[URL]: a for a in answers_from_intents(intents)}
     #print('stats for answers_all:')
     #print('distinct posts: %i' % len(answers_all))
     #print('distinct posts with image: %i' % len([url for url in answers_all if answers_all[url]['has_image']]))
     #print('distinct posts with quote: %i' % len([url for url in answers_all if answers_all[url]['has_quote']]))
     #print('distinct posts with link: %i' % len([url for url in answers_all if answers_all[url]['has_link']]))
 
-    intents_split = {intent['Intent-ID']: {'Intent-Text': intent['Intent-Text'], 'answers_split': answer_from_concat(intent[column_split_content])} for intent in read_tsv(path.join(base_path, tsv_sentences_fn))}
     with open(path.join(summary_in_fn)) as f:
         summary = json.load(f)
 
@@ -205,7 +237,7 @@ def main(base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
     #    #f.write(json_string)
     #    f.flush()
 
-    summary['dynamicContent'] = intents_split_to_dynamicContent(intents_split, answers_all, nbr_posts=10,
+    summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
                                                                 max_queries=max_queries, format_as=format_as,
                                                                 only_query_nbrs=only_queries.strip().split(',') if only_queries is not None else None,
                                                                 dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
