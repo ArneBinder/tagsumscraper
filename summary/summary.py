@@ -28,7 +28,7 @@ URL = 'url'
 
 #logger = logging.getLogger()
 #logger.setLevel(logging.DEBUG)
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(logging.DEBUG)
 
 
 def read_tsv(path):
@@ -39,12 +39,19 @@ def read_tsv(path):
 
 
 def answer_from_concat(answer_concat):
-    parts = answer_concat.split('-----')
-    urls = [parts[i].strip() for i in range(1, len(parts), 2)]
-    _answers = [parts[i].strip() for i in range(2, len(parts), 2)]
+    #parts = answer_concat.split('-----')
+    #parts = re.split(r'(^|\n)-----\s', answer_concat)
+    parts = re.split(r'(^\s*|\s+)-----\s+([^\s]+) -----\s', answer_concat)
+    urls = [parts[i].strip() for i in range(2, len(parts), 3)]
+    _answers = [parts[i].strip() for i in range(3, len(parts), 3)]
     #answers = [[a.split('||')[0].split('##')[-1].strip() for a in re.split('\|\|\s+##', a_con)] for a_con in _answers]
     #_answers = re.split('\|\|\s+##', parts[2])
-    return {urls[i]: _answers[i] for i in range(len(urls))}
+    try:
+        res = {urls[i]: _answers[i] for i in range(len(urls))}
+    except Exception as e:
+        logging.error('parts: %s' % parts)
+        raise e
+    return res
 
 
 def answers_from_intents(intents):
@@ -59,8 +66,9 @@ def answers_dict_from_intent(intent):
     res = {}
     for q in intent[QUESTIONS]:
         for a in q[ANSWERS]:
-            a[QUESTION] = q
-            res[a[URL]] = a
+            if a[URL] in intent['relevant_answer_links']:
+                a[QUESTION] = q
+                res[a[URL]] = a
     return res
 
 
@@ -137,25 +145,28 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=No
             continue
         query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT]))
 
-        current_answers_split = [(url,intent[ANSWERS_SPLIT][url]) for url in intent[ANSWERS_SPLIT]]
+        current_answers_split = [(url, intent[ANSWERS_SPLIT][url]) for url in intent[ANSWERS_SPLIT]]
         answers_html = []
         for current_url, current_answer in current_answers_split:
-            answer_full = intent[ANSWERS_ALL][current_url]
-            answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answer),
-                                             format_as=format_as)
+            try:
+                answer_full = intent[ANSWERS_ALL][current_url]
+                answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answer),
+                                                 format_as=format_as)
 
-            new_answer = '<div class="answer-content">%s</div>' % answer_splits
-            question_title = '<div class="question-title">%s</div>' % answer_full[QUESTION][TITLE]
+                new_answer = '<div class="answer-content">%s</div>' % answer_splits
+                question_title = '<div class="question-title">%s</div>' % answer_full[QUESTION][TITLE]
 
-            accepted_by = answer_full.get('solution_accepted_by', None)
-            accepted_by_text = answer_full.get('solution_accepted_by_text', None)
-            if accepted_by:
-                new_answer = '<div class="answer solution"><div class="solution-header">Lösung akzeptiert von %s %s</div>%s</div>' \
-                             % (accepted_by, accepted_by_text, new_answer)
-            else:
-                new_answer = '<div class="answer">%s</div>' % new_answer
-            answers_html.append(question_title + new_answer)
-
+                accepted_by = answer_full.get('solution_accepted_by', None)
+                accepted_by_text = answer_full.get('solution_accepted_by_text', None)
+                if accepted_by:
+                    new_answer = '<div class="answer solution"><div class="solution-header">Lösung akzeptiert von %s %s</div>%s</div>' \
+                                 % (accepted_by, accepted_by_text, new_answer)
+                else:
+                    new_answer = '<div class="answer">%s</div>' % new_answer
+                answers_html.append(question_title + new_answer)
+            except Exception as e:
+                logging.error('intent: %s,\tanswer url: %s' % (intent[INTENT_ID], current_url))
+                raise e
         answers_html_with_parsed_text = [(html_doc, BeautifulSoup(html_doc, 'html.parser').get_text()) for html_doc in answers_html]
         ## use character count for sorting
         #answers_html_sorted = sorted(answers_html_with_parsed_text, key=lambda h_with_l: len(h_with_l[1]), reverse=True)
@@ -175,7 +186,7 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=No
     return list(new_dynamic_content.values())
 
 
-def create_multiple_jobs(intents, summary, summary_out_fn, format_as, only_intent_ids):
+def create_multiple_jobs(intents, summary, summary_out_fn, format_as):
     nbr_words_query_median = median((len(intent[INTENT_TEXT].split()) for intent in intents))
     nbr_words_posts_median = median((intent['nbr_words_relevant'] for intent in intents))
 
@@ -196,8 +207,9 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as, only_inten
 
     dcs = [intents_split_to_dynamicContent(
         current_intents, nbr_posts=10, format_as=format_as,
-        only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
-        dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})}) for current_intents in
+        #only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
+        #dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})}
+    ) for current_intents in
         intents_selected]
     # summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
     #                                                            #max_queries=max_queries,
@@ -214,10 +226,10 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as, only_inten
             f.flush()
 
 
-def create_single_job(intents, summary, summary_out_fn, format_as, only_intent_ids):
+def create_single_job(intents, summary, summary_out_fn, format_as):
     summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
                                                                 format_as=format_as,
-                                                                only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
+                                                                #only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
                                                                 dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
     #with open('scrape_10/Summary_content.json', 'w') as f:
     with codecs.open(summary_out_fn, 'w', encoding='utf-8') as f:
@@ -226,7 +238,7 @@ def create_single_job(intents, summary, summary_out_fn, format_as, only_intent_i
         f.flush()
 
 
-def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single', 'multiple']),
+def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single', 'multiple', 'test']),
          base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          tsv_sentences_fn: ("tsv file containing the split sentences", 'option', 's')='ARNE_LEO-Training-Example-Summaries-Intents.tsv',
          intents_all_fn: ("Jsonline file containing all intent data", 'option', 't')='intents_questions_10_merged.jl',
@@ -235,20 +247,54 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
          #max_queries: ("maximal number of queries. defaults to take all (-1)", 'option', 'm', int)=-1,
-         only_intent_ids: ("use only intents with these ids", 'option', 'q', str)=None
+         intent_ids_whitelist: ("use only intents with these ids", 'option', 'w', str)=None,
+         intent_ids_blacklist: ("use only intents with these ids", 'option', 'b', str)=""
          ):
 
+    if mode == 'test':
+        with open(path.join(base_path, 'test.txt')) as f:
+            test_text = '\n'.join(f.readlines())
+        answer_from_concat(test_text)
+        return
+
+    blacklist = {'SEGMENTED': ['not-segmented', '', None], 'Scrapen?': ['0']}
+    _intent_ids_blacklist = intent_ids_blacklist.strip().split(',')
+    _intent_ids_whitelist = intent_ids_whitelist.strip().split(',') if intent_ids_whitelist is not None else ()
     intents_all = {intent[INTENT_ID]: intent for intent in load_jl(path.join(base_path, intents_all_fn))}
     intents = []
     for intent in read_tsv(path.join(base_path, tsv_sentences_fn)):
         intent_id = intent[INTENT_ID]
-        intent.update(intents_all[intent_id])
-        intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
-        intent[ANSWERS_SPLIT] = answer_from_concat(intent[column_split_content])
-        #intents[intent_id] = intent
-        intents.append(intent)
+        content_segmented = intent[column_split_content]
+        if content_segmented and content_segmented.strip() \
+                and not any(intent[k] in blacklist[k] or (intent[k] is not None and intent[k].strip() in blacklist[k]) for k in blacklist) \
+                and intent_id not in _intent_ids_blacklist \
+                and intent_ids_whitelist is None or intent_id in _intent_ids_whitelist:
+            try:
+                intent.update(intents_all[intent_id])
+                intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
+                intent[ANSWERS_SPLIT] = answer_from_concat(intent[column_split_content])
+                #intents[intent_id] = intent
+                intents.append(intent)
+                logging.info('take intent: %s' % intent_id)
+            except Exception as e:
+                logging.error('intent: %s' % intent_id)
+                raise(e)
+        else:
+            logging.warning('skipped intent: %s' % intent_id)
 
-    with open(path.join(summary_in_fn)) as f:
+    logging.info('collected %i segmented intents' % len(intents))
+    # debug
+    #logging.debug('all_intent_names:')
+    #for int_name in sorted([intent[INTENT_ID] for intent in intents]):
+    #    logging.debug(int_name)
+    #all_answer_urls = []
+    #for intent in intents:
+    #    all_answer_urls.extend(intent[ANSWERS_ALL].keys())
+    #logging.debug('all_answer_urls (%i):' % len(set(all_answer_urls)))
+    #for asw_url in sorted(list(set(all_answer_urls))):
+    #    logging.debug(asw_url)
+
+    with open(summary_in_fn) as f:
         summary = json.load(f)
 
     #answers_all = {a[URL]: a for a in answers_from_intents(intents)}
@@ -259,9 +305,9 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
     #print('distinct posts with link: %i' % len([url for url in answers_all if answers_all[url]['has_link']]))
 
     if mode == 'single':
-        create_single_job(intents, summary, summary_out_fn, format_as, only_intent_ids)
+        create_single_job(intents, summary, summary_out_fn, format_as)
     elif mode == 'multiple':
-        create_multiple_jobs(intents, summary, summary_out_fn, format_as, only_intent_ids)
+        create_multiple_jobs(intents, summary, summary_out_fn, format_as)
     else:
         raise AssertionError('This should not happen.')
 
