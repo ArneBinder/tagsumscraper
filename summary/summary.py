@@ -38,10 +38,13 @@ def read_tsv(path):
     return rows
 
 
-def answer_from_concat(answer_concat):
+def answer_from_concat(answer_concat, with_numbers=False):
     #parts = answer_concat.split('-----')
     #parts = re.split(r'(^|\n)-----\s', answer_concat)
-    parts = re.split(r'(^\s*|\s+)-----\s+([^\s]+) -----\s', answer_concat)
+    if with_numbers:
+        parts = re.split(r'\s*\((\d+)\)\s+-----\s+([^\s]+) -----\s', answer_concat)
+    else:
+        parts = re.split(r'(^\s*|\s+)-----\s+([^\s]+) -----\s', answer_concat)
     urls = [parts[i].strip() for i in range(2, len(parts), 3)]
     _answers = [parts[i].strip() for i in range(3, len(parts), 3)]
     #answers = [[a.split('||')[0].split('##')[-1].strip() for a in re.split('\|\|\s+##', a_con)] for a_con in _answers]
@@ -238,7 +241,7 @@ def create_single_job(intents, summary, summary_out_fn, format_as):
         f.flush()
 
 
-def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single', 'multiple', 'test']),
+def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single', 'multiple', 'test', 'split']),
          base_path: ("Path to the base directory", 'option', 'p')='scrape_10',
          tsv_sentences_fn: ("tsv file containing the split sentences", 'option', 's')='ARNE_LEO-Training-Example-Summaries-Intents.tsv',
          intents_all_fn: ("Jsonline file containing all intent data", 'option', 't')='intents_questions_10_merged.jl',
@@ -255,6 +258,20 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
         with open(path.join(base_path, 'test.txt')) as f:
             test_text = '\n'.join(f.readlines())
         answer_from_concat(test_text)
+        return
+    elif mode == 'split':
+        for intent in read_tsv(tsv_sentences_fn):
+            if intent[INTENT_ID] is not None and intent[INTENT_ID].strip() != '':
+                dir_path = os.path.join(base_path, intent[INTENT_ID].strip())
+                os.makedirs(dir_path)
+                content_segmented = intent[column_split_content]
+                posts_split = answer_from_concat(content_segmented, with_numbers=True)
+                for url in posts_split:
+                    fn = os.path.join(dir_path, url.split('/')[-1])
+                    post = '\n'.join(map(str.strip, posts_split[url].replace('##', '').split('||')))
+                    with open(fn, 'w') as f:
+                        f.write(post)
+
         return
 
     blacklist = {'SEGMENTED': ['not-segmented', '', None], 'Scrapen?': ['0']}
