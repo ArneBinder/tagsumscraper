@@ -289,7 +289,7 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
         content_segmented = intent[column_split_content]
         if content_segmented and content_segmented.strip() \
                 and not any(intent[k] in blacklist[k] or (intent[k] is not None and intent[k].strip() in blacklist[k]) for k in blacklist) \
-                and all(intent[k] in whitelist[k] or (intent[k] is not None and intent[k].strip() in whitelist[k]) for k in whitelist):
+                and (whitelist is None or all(intent[k] in whitelist[k] or (intent[k] is not None and intent[k].strip() in whitelist[k]) for k in whitelist)):
                 #and intent_id not in _intent_ids_blacklist \
                 #and intent_ids_whitelist is None or intent_id in _intent_ids_whitelist:
             try:
