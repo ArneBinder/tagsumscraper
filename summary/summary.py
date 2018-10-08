@@ -26,8 +26,6 @@ TITLE = 'title'
 ANSWERS = 'answers'
 URL = 'url'
 
-#logger = logging.getLogger()
-#logger.setLevel(logging.DEBUG)
 logging.getLogger().setLevel(logging.DEBUG)
 
 
@@ -142,8 +140,6 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=No
     query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
     all_l = []
     for intent in intents:
-        #if i == max_queries:
-        #    break
         if only_intent_ids is not None and intent[INTENT_ID] not in only_intent_ids:
             continue
         query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT]))
@@ -210,20 +206,12 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as):
 
     dcs = [intents_split_to_dynamicContent(
         current_intents, nbr_posts=10, format_as=format_as,
-        #only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
-        #dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})}
     ) for current_intents in
         intents_selected]
-    # summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
-    #                                                            #max_queries=max_queries,
-    #                                                            format_as=format_as,
-    #                                                            only_intent_ids=only_intents.strip().split(',') if only_intents is not None else None,
-    #                                                            dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
-    # with open('scrape_10/Summary_content.json', 'w') as f:
 
     for i, dc in enumerate(dcs):
         summary['dynamicContent'] = dc
-        with codecs.open('%s.%i' % (summary_out_fn, i), 'w', encoding='utf-8') as f:
+        with codecs.open('%s.%i.json' % (summary_out_fn, i), 'w', encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=4)
             # f.write(json_string)
             f.flush()
@@ -232,12 +220,9 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as):
 def create_single_job(intents, summary, summary_out_fn, format_as):
     summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
                                                                 format_as=format_as,
-                                                                #only_intent_ids=only_intent_ids.strip().split(',') if only_intent_ids is not None else None,
                                                                 dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
-    #with open('scrape_10/Summary_content.json', 'w') as f:
     with codecs.open(summary_out_fn, 'w', encoding='utf-8') as f:
         json.dump(summary, f, ensure_ascii=False, indent=4)
-        #f.write(json_string)
         f.flush()
 
 
@@ -249,9 +234,6 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
          summary_out_fn: ("Json file that will be used as template", 'option', 'o') = 'Summary.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
-         #max_queries: ("maximal number of queries. defaults to take all (-1)", 'option', 'm', int)=-1,
-         #intent_ids_whitelist: ("use only intents with these ids", 'option', 'w', str)=None,
-         #intent_ids_blacklist: ("exclude intents with these ids", 'option', 'b', str)="",
          whitelist: ("use only intents with these column values", 'option', 'w', str)=None,
          blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0","",null]}'
          ):
@@ -276,12 +258,9 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
 
         return
 
-    #blacklist = {'SEGMENTED': ['not-segmented', '', None], 'Scrapen?': ['0']}
     blacklist = json.loads(blacklist)
     whitelist = json.loads(whitelist) if whitelist is not None else None
 
-    #_intent_ids_blacklist = intent_ids_blacklist.strip().split(',')
-    #_intent_ids_whitelist = intent_ids_whitelist.strip().split(',') if intent_ids_whitelist is not None else ()
     intents_all = {intent[INTENT_ID]: intent for intent in load_jl(path.join(base_path, intents_all_fn))}
     intents = []
     for intent in read_tsv(path.join(base_path, tsv_sentences_fn)):
@@ -292,13 +271,10 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
         if content_segmented and content_segmented.strip() \
                 and not any(intent[k] in blacklist[k] or (intent[k] is not None and intent[k].strip() in blacklist[k]) for k in blacklist) \
                 and (whitelist is None or all(intent[k] in whitelist[k] or (intent[k] is not None and intent[k].strip() in whitelist[k]) for k in whitelist)):
-                #and intent_id not in _intent_ids_blacklist \
-                #and intent_ids_whitelist is None or intent_id in _intent_ids_whitelist:
             try:
                 intent.update(intents_all[intent_id])
                 intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
                 intent[ANSWERS_SPLIT] = answer_from_concat(intent[column_split_content])
-                #intents[intent_id] = intent
                 intents.append(intent)
                 logging.info('take intent: %s' % intent_id)
             except Exception as e:
@@ -308,6 +284,7 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
             logging.warning('skipped intent: %s' % intent_id)
 
     logging.info('collected %i segmented intents' % len(intents))
+
     # debug
     #logging.debug('all_intent_names:')
     #for int_name in sorted([intent[INTENT_ID] for intent in intents]):
@@ -322,6 +299,7 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
     with open(summary_in_fn) as f:
         summary = json.load(f)
 
+    # stats
     #answers_all = {a[URL]: a for a in answers_from_intents(intents)}
     #print('stats for answers_all:')
     #print('distinct posts: %i' % len(answers_all))
