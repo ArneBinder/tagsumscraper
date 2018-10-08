@@ -30,10 +30,15 @@ def get_intents_from_tsv(path, filter_columns=None, scrape_flag_column=None, scr
         assert len(answer_cols) == 0 or len(question_cols) == 0, 'found question (#%d) AND answer link columns (#%d) in %s, but expected just questions OR answers' % (len(question_cols), len(answer_cols), path)
         link_cols = answer_cols + question_cols
         for row in reader:
-            skip = scrape_flag_column is not None and (row[scrape_flag_column] is None or row[scrape_flag_column].strip() != scrape_flag_true)
+            # skip if scrape_flag_column is: bool(scrape_flag_column) evaluates to False, contains only whitespace or
+            # contains "0". Furthermore, only integer values are allowed.
+            skip = scrape_flag_column is not None and (not row[scrape_flag_column] or not row[scrape_flag_column].strip() or not int(row[scrape_flag_column].strip())) #(row[scrape_flag_column] is None or row[scrape_flag_column].strip() != scrape_flag_true)
             if skip:
                 #print(row)
+                print('SKIP Intent: %s' % row[INTENT_ID])
                 continue
+            else:
+                print('TAKE Intent: %s' % row[INTENT_ID])
             new_row = {c: row[c] for c in cols if c not in link_cols}
             # remove and collect link urls
             links_ = (row[col].strip() for col in link_cols if row[col] is not None)
