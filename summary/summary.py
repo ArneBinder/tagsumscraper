@@ -250,8 +250,10 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
          #max_queries: ("maximal number of queries. defaults to take all (-1)", 'option', 'm', int)=-1,
-         intent_ids_whitelist: ("use only intents with these ids", 'option', 'w', str)=None,
-         intent_ids_blacklist: ("use only intents with these ids", 'option', 'b', str)=""
+         #intent_ids_whitelist: ("use only intents with these ids", 'option', 'w', str)=None,
+         #intent_ids_blacklist: ("exclude intents with these ids", 'option', 'b', str)="",
+         whitelist: ("use only intents with these column values", 'option', 'w', str)=None,
+         blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0"]}'
          ):
 
     if mode == 'test':
@@ -274,9 +276,12 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
 
         return
 
-    blacklist = {'SEGMENTED': ['not-segmented', '', None], 'Scrapen?': ['0']}
-    _intent_ids_blacklist = intent_ids_blacklist.strip().split(',')
-    _intent_ids_whitelist = intent_ids_whitelist.strip().split(',') if intent_ids_whitelist is not None else ()
+    #blacklist = {'SEGMENTED': ['not-segmented', '', None], 'Scrapen?': ['0']}
+    blacklist = json.loads(blacklist)
+    whitelist = json.loads(whitelist) if whitelist is not None else None
+
+    #_intent_ids_blacklist = intent_ids_blacklist.strip().split(',')
+    #_intent_ids_whitelist = intent_ids_whitelist.strip().split(',') if intent_ids_whitelist is not None else ()
     intents_all = {intent[INTENT_ID]: intent for intent in load_jl(path.join(base_path, intents_all_fn))}
     intents = []
     for intent in read_tsv(path.join(base_path, tsv_sentences_fn)):
@@ -284,8 +289,9 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
         content_segmented = intent[column_split_content]
         if content_segmented and content_segmented.strip() \
                 and not any(intent[k] in blacklist[k] or (intent[k] is not None and intent[k].strip() in blacklist[k]) for k in blacklist) \
-                and intent_id not in _intent_ids_blacklist \
-                and intent_ids_whitelist is None or intent_id in _intent_ids_whitelist:
+                and all(intent[k] in whitelist[k] or (intent[k] is not None and intent[k].strip() in whitelist[k]) for k in whitelist):
+                #and intent_id not in _intent_ids_blacklist \
+                #and intent_ids_whitelist is None or intent_id in _intent_ids_whitelist:
             try:
                 intent.update(intents_all[intent_id])
                 intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
