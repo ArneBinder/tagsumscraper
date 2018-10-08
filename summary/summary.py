@@ -253,7 +253,7 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
          #intent_ids_whitelist: ("use only intents with these ids", 'option', 'w', str)=None,
          #intent_ids_blacklist: ("exclude intents with these ids", 'option', 'b', str)="",
          whitelist: ("use only intents with these column values", 'option', 'w', str)=None,
-         blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0"]}'
+         blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0","",null]}'
          ):
 
     if mode == 'test':
