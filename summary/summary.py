@@ -287,6 +287,8 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
     for intent in read_tsv(path.join(base_path, tsv_sentences_fn)):
         intent_id = intent[INTENT_ID]
         content_segmented = intent[column_split_content]
+        if not (content_segmented and content_segmented.strip() and intent_id and intent_id.strip()):
+            continue
         if content_segmented and content_segmented.strip() \
                 and not any(intent[k] in blacklist[k] or (intent[k] is not None and intent[k].strip() in blacklist[k]) for k in blacklist) \
                 and (whitelist is None or all(intent[k] in whitelist[k] or (intent[k] is not None and intent[k].strip() in whitelist[k]) for k in whitelist)):

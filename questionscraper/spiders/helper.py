@@ -35,7 +35,8 @@ def get_intents_from_tsv(path, filter_columns=None, scrape_flag_column=None, scr
             skip = scrape_flag_column is not None and (not row[scrape_flag_column] or not row[scrape_flag_column].strip() or not int(row[scrape_flag_column].strip())) #(row[scrape_flag_column] is None or row[scrape_flag_column].strip() != scrape_flag_true)
             if skip:
                 #print(row)
-                print('SKIP Intent: %s' % row[INTENT_ID])
+                if row[INTENT_ID] is not None and row[INTENT_ID].strip() != '':
+                    print('SKIP Intent: %s' % row[INTENT_ID])
                 continue
             else:
                 print('TAKE Intent: %s' % row[INTENT_ID])
