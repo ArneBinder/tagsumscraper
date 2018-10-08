@@ -142,8 +142,9 @@ def process_message_view(message, response, embed_plain=False):
     text, text_cleaned = serialize_elem(message_content, response, embed_plain=embed_plain)
     # replace double spaces (were inserted between inline elements)
     text_cleaned = text_cleaned.replace('  ', ' ')
-    result['content'] = text.strip()
-    result['content_cleaned'] = text_cleaned.strip()
+    # replace double quotes (these would destroy table entries when downloaded later from google sheets)
+    result['content'] = text.strip().replace('"', '\'\'')
+    result['content_cleaned'] = text_cleaned.strip().replace('"', '\'\'')
 
     result['has_quote'] = '[%s]' % CAPTION_BLOCKQUOTE in result['content']
     result['has_image'] = '[%s]' % CAPTION_IMAGE in result['content']
@@ -284,7 +285,8 @@ class AnswersSpider(scrapy.Spider):
             intents = get_intents_from_tsv(
                 intent_file,
                 filter_columns=['Intent-ID', 'DT-Example', 'Basis-Intent-Text', 'Intent-Text', 'Answers-Searcher',
-                                'Intent-Type', 'Summary-Must-Haves', 'Summary-Example-3-Sents- OLD VERSIONS',
+                                'Intent-Type', 'Summary-Must-Haves',
+                                'Scrapen?', 'SEGMENTED', 'answers_plain_marked_relevant_segmented'
                                 #'Answer_0', 'Answer_1', 'Answer_2', 'Answer_3', 'Answer_4', 'Answer_5', 'Answer_6',
                                 #'Answer_7', 'Answer_8', 'Answer_9',
                                 #'Answer_10', 'Answer_11', 'Answer_12', 'Answer_13', 'Answer_14', 'Answer_15', 'Answer_16',
