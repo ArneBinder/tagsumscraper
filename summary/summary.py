@@ -118,19 +118,20 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     # TODO: get list of all emojis
     # see http://graphemica.com/%F0%9F%98%80
     #s = s.replace('🙂', '&#128578;').replace('💕', '&#128578;').replace('😀', '&#128578;')
-    for emoji in ['🙂', '💕', '😀']:
+    for emoji in ['🙂', '💕', '😀', '😊']:
         s = s.replace(emoji, '&#%i;' % ord(emoji))
     #s = s.replace('🙂', '').replace('💕', '').replace('😀', '')
     return s
 
 
 def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=None,
-                                    only_intent_ids=None, format_as=FORMAT_LIST):
+                                    only_intent_ids=None, max_intents=None, format_as=FORMAT_LIST):
     if dynamicContent_loaded is None:
         dynamicContent_loaded = {}
     posts = [{'identifier': 'Post%i' % (i+1), 'type': 'TEXT', 'values': []} for i in range(nbr_posts)]
     if 'query' in dynamicContent_loaded:
         logging.warning('"query" is already in dynamicContent, OVERWRITE it.')
+        del dynamicContent_loaded['query']
     if 'Post1' in dynamicContent_loaded:
         logging.warning('"Post1" is already in dynamicContent, OVERWRITE all "Post<n>".')
     # delete posts from loaded
@@ -140,6 +141,8 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=No
     query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
     all_l = []
     for intent in intents:
+        if max_intents and len(query['values']) >= max_intents:
+            break
         if only_intent_ids is not None and intent[INTENT_ID] not in only_intent_ids:
             continue
         query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT]))
@@ -180,8 +183,13 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=No
                 posts[post_pos]['values'].append('')
         all_l.append(l)
     logging.info('lengths of all posts for all %i intents: %s' % (len(all_l), str(all_l)))
-    new_dynamic_content = {dc['identifier']: dc for dc in posts + [query]} #, summary_good, summary_bad]}
-    new_dynamic_content.update(dynamicContent_loaded)
+    for p in posts:
+        assert len(p['values']) == len(query['values']), 'nbr of post entries %i for %s does not match nbr of query entires %i' % (len(p['values']), p['identifier'], len(query['values']))
+
+    #new_dynamic_content = {dc['identifier']: dc for dc in posts + [query]} #, summary_good, summary_bad]}
+    #new_dynamic_content.update(dynamicContent_loaded)
+    new_dynamic_content = dynamicContent_loaded.copy()
+    new_dynamic_content.update({dc['identifier']: dc for dc in posts + [query]})
     return list(new_dynamic_content.values())
 
 
@@ -205,7 +213,9 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as):
             raise AssertionError('This should not happen.')
 
     dcs = [intents_split_to_dynamicContent(
-        current_intents, nbr_posts=10, format_as=format_as,
+        current_intents, nbr_posts=10, format_as=format_as, dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})},
+        # DEBUG: remove this!
+        #max_intents=8
     ) for current_intents in
         intents_selected]
 
