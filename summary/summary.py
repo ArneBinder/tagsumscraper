@@ -15,6 +15,7 @@ from statistics import median
 FORMAT_LIST = 'list'
 FORMAT_CHECKBOXES = 'checkboxes'
 FORMAT_PARAGRAPHS = 'paragraphs'
+FORMAT_PLAIN = 'plain'
 
 ANSWERS_ALL = 'answers_all'
 ANSWERS_SPLIT = 'answers_split'
@@ -100,8 +101,10 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
                     s += s_split[i].replace('##', '<p><input type="checkbox" name="check">') + '</p>'
         #s = content.replace('##', '<p><input type="checkbox" name="check">').replace('||', '</p>')
         #s = content.replace('##', '<p><span class="sentence">').replace('||', '</span></p>')
-    else:
+    elif format_as == FORMAT_PLAIN:
         s = html.escape(content)
+    else:
+        raise ValueError('unknown "format_as": %s' % format_as)
     # replace links with captions
     s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', r'<a href="\1" target="_blank">\2</a> ',
                            s)
@@ -158,7 +161,7 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamic_content_loaded=N
             break
         if only_intent_ids is not None and intent[INTENT_ID] not in only_intent_ids:
             continue
-        query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT]))
+        query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT], format_as=FORMAT_PLAIN))
 
         current_answers_split = [(url, intent[ANSWERS_SPLIT][url]) for url in intent[ANSWERS_SPLIT]]
         answers_html = []
