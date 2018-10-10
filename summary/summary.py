@@ -124,21 +124,20 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     return s
 
 
-def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=None,
+def intents_split_to_dynamicContent(intents, nbr_posts, dynamic_content_loaded=None,
                                     only_intent_ids=None, max_intents=None, format_as=FORMAT_LIST):
-    if dynamicContent_loaded is None:
-        dynamicContent_loaded = {}
+    if max_intents:
+        logging.warning('max_intents is set to: %i' % max_intents)
+    if dynamic_content_loaded is None:
+        new_dynamic_content = {}
+    else:
+        new_dynamic_content = dynamic_content_loaded.copy()
     posts = [{'identifier': 'Post%i' % (i+1), 'type': 'TEXT', 'values': []} for i in range(nbr_posts)]
-    if 'query' in dynamicContent_loaded:
+    if 'query' in new_dynamic_content:
         logging.warning('"query" is already in dynamicContent, OVERWRITE it.')
-        del dynamicContent_loaded['query']
-    if 'Post1' in dynamicContent_loaded:
+    if 'Post1' in new_dynamic_content:
         logging.warning('"Post1" is already in dynamicContent, OVERWRITE all "Post<n>".')
-    # delete posts from loaded
-    for p in posts:
-        if p['identifier'] in dynamicContent_loaded:
-            del dynamicContent_loaded[p['identifier']]
-    query = {'identifier': 'query', 'type': 'TEXT', 'values': dynamicContent_loaded['query']['values'] if 'query' in dynamicContent_loaded else []}
+    query = {'identifier': 'query', 'type': 'TEXT', 'values': []}
     all_l = []
     for intent in intents:
         if max_intents and len(query['values']) >= max_intents:
@@ -184,16 +183,15 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamicContent_loaded=No
         all_l.append(l)
     logging.info('lengths of all posts for all %i intents: %s' % (len(all_l), str(all_l)))
     for p in posts:
-        assert len(p['values']) == len(query['values']), 'nbr of post entries %i for %s does not match nbr of query entires %i' % (len(p['values']), p['identifier'], len(query['values']))
+        assert len(p['values']) == len(query['values']), \
+            'nbr of post entries %i for %s does not match nbr of query entires %i' \
+            % (len(p['values']), p['identifier'], len(query['values']))
 
-    #new_dynamic_content = {dc['identifier']: dc for dc in posts + [query]} #, summary_good, summary_bad]}
-    #new_dynamic_content.update(dynamicContent_loaded)
-    new_dynamic_content = dynamicContent_loaded.copy()
     new_dynamic_content.update({dc['identifier']: dc for dc in posts + [query]})
     return list(new_dynamic_content.values())
 
 
-def create_multiple_jobs(intents, summary, summary_out_fn, format_as):
+def create_multiple_jobs(intents, summary, summary_out_fn, format_as, max_intents=None):
     nbr_words_query_median = median((len(intent[INTENT_TEXT].split()) for intent in intents))
     nbr_words_posts_median = median((intent['nbr_words_relevant'] for intent in intents))
 
@@ -212,12 +210,13 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as):
         else:
             raise AssertionError('This should not happen.')
 
-    dcs = [intents_split_to_dynamicContent(
-        current_intents, nbr_posts=10, format_as=format_as, dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})},
-        # DEBUG: remove this!
-        #max_intents=8
-    ) for current_intents in
-        intents_selected]
+    dcs = [
+        intents_split_to_dynamicContent(
+            current_intents, nbr_posts=10, format_as=format_as,
+            dynamic_content_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})},
+            max_intents=max_intents
+        ) for current_intents in intents_selected
+    ]
 
     for i, dc in enumerate(dcs):
         summary['dynamicContent'] = dc
@@ -227,10 +226,10 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as):
             f.flush()
 
 
-def create_single_job(intents, summary, summary_out_fn, format_as):
-    summary['dynamicContent'] = intents_split_to_dynamicContent(intents, nbr_posts=10,
-                                                                format_as=format_as,
-                                                                dynamicContent_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
+def create_single_job(intents, summary, summary_out_fn, format_as, max_intents=None):
+    summary['dynamicContent'] = intents_split_to_dynamicContent(
+        intents, nbr_posts=10, format_as=format_as, max_intents=max_intents,
+        dynamic_content_loaded={dc['identifier']: dc for dc in summary.get('dynamicContent', {})})
     with codecs.open(summary_out_fn, 'w', encoding='utf-8') as f:
         json.dump(summary, f, ensure_ascii=False, indent=4)
         f.flush()
@@ -245,7 +244,8 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
          whitelist: ("use only intents with these column values", 'option', 'w', str)=None,
-         blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0","",null]}'
+         blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0","",null]}',
+         max_intents: ('use only the first m intents', 'option', 'm', int)=None
          ):
 
     if mode == 'test':
@@ -318,9 +318,9 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
     #print('distinct posts with link: %i' % len([url for url in answers_all if answers_all[url]['has_link']]))
 
     if mode == 'single':
-        create_single_job(intents, summary, summary_out_fn, format_as)
+        create_single_job(intents, summary, summary_out_fn, format_as, max_intents)
     elif mode == 'multiple':
-        create_multiple_jobs(intents, summary, summary_out_fn, format_as)
+        create_multiple_jobs(intents, summary, summary_out_fn, format_as, max_intents)
     else:
         raise AssertionError('This should not happen.')
 
