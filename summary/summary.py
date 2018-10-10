@@ -136,7 +136,7 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamic_content_loaded=N
     if 'query' in new_dynamic_content:
         logging.warning('"query" is already in dynamicContent, OVERWRITE it.')
     if 'Post1' in new_dynamic_content:
-        logging.warning('"Post1" is already in dynamicContent, OVERWRITE all "Post<n>".')
+        logging.warning('"Post1" is already in dynamicContent, OVERWRITE "Post1" to "Post%i".' % nbr_posts)
     query = {'identifier': 'query', 'type': 'TEXT', 'values': []}
     all_l = []
     for intent in intents:
