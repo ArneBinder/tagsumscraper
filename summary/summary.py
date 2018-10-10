@@ -237,7 +237,7 @@ def create_multiple_jobs(intents, summary, summary_out_fn, format_as, max_intent
 
     for i, dc in enumerate(dcs):
         summary['dynamicContent'] = dc
-        with codecs.open('%s.%i.json' % (summary_out_fn, i), 'w', encoding='utf-8') as f:
+        with codecs.open('%s.%i.json' % (summary_out_fn, i+1), 'w', encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=4)
             # f.write(json_string)
             f.flush()
