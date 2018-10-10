@@ -262,7 +262,8 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
          format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
          whitelist: ("use only intents with these column values", 'option', 'w', str)=None,
          blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0","",null]}',
-         max_intents: ('use only the first m intents', 'option', 'm', int)=None
+         max_intents: ('use only the first m intents', 'option', 'm', int)=None,
+         min_posts: ('min nbr', 'option', 'n', int)=6
          ):
 
     if mode == 'test':
@@ -303,6 +304,8 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
                 intent.update(intents_all[intent_id])
                 intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
                 intent[ANSWERS_SPLIT] = answer_from_concat(content_segmented)
+                if len(intent[ANSWERS_SPLIT]) < min_posts:
+                    continue
                 intents.append(intent)
                 logging.info('take intent: %s' % intent_id)
             except Exception as e:
