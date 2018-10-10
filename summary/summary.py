@@ -26,6 +26,14 @@ TITLE = 'title'
 ANSWERS = 'answers'
 URL = 'url'
 
+CAPTION_IMAGE = 'IMAGE'
+CAPTION_BLOCKQUOTE = 'BLOCKQUOTE'
+CAPTION_UNKNOWN = 'UNKNOWN'
+CAPTION_LINK = 'LINK'
+CAPTION_LINK_PROFILE = 'LINK_PROFILE'
+
+CAPTIONS = [CAPTION_IMAGE, CAPTION_BLOCKQUOTE, CAPTION_UNKNOWN, CAPTION_LINK, CAPTION_LINK_PROFILE]
+
 logging.getLogger().setLevel(logging.DEBUG)
 
 
@@ -106,6 +114,8 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     s = re.sub(r'\[IMAGE\]{{\s*([^}]+)\s*}}', r'<img src="\1" />', s)
 
     # replace quotes. That separates the list (add closing and opening ul tags)
+    # remove empty blockquotes
+    s = s.replace('[BLOCKQUOTE]{{}}', '')
     if '[BLOCKQUOTE]' in s:
         s = re.sub(r'schrieb:\s*', 'schrieb:<br/>', s)
     # interrupt the list for blockquotes, if lists are is used
@@ -121,6 +131,10 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     for emoji in ['🙂', '💕', '😀', '😊']:
         s = s.replace(emoji, '&#%i;' % ord(emoji))
     #s = s.replace('🙂', '').replace('💕', '').replace('😀', '')
+
+    assert '}}' not in s and '{{' not in s, 'final html contains "{{" or "}}":\n%s' % s
+    for c in CAPTIONS:
+        assert '[%s]' % c not in s, 'final html contains "[%s]":\n%s' % (c, s)
     return s
 
 
