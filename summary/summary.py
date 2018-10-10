@@ -296,9 +296,10 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
                 and not any(intent[k] in blacklist[k] or (intent[k] is not None and intent[k].strip() in blacklist[k]) for k in blacklist) \
                 and (whitelist is None or all(intent[k] in whitelist[k] or (intent[k] is not None and intent[k].strip() in whitelist[k]) for k in whitelist)):
             try:
+                # ATTENTION: that might override entries from tsv data!
                 intent.update(intents_all[intent_id])
                 intent[ANSWERS_ALL] = answers_dict_from_intent(intents_all[intent_id])
-                intent[ANSWERS_SPLIT] = answer_from_concat(intent[column_split_content])
+                intent[ANSWERS_SPLIT] = answer_from_concat(content_segmented)
                 intents.append(intent)
                 logging.info('take intent: %s' % intent_id)
             except Exception as e:
