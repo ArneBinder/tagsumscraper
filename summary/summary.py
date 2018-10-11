@@ -286,8 +286,8 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
 
         return
 
-    blacklist = json.loads(blacklist)
-    whitelist = json.loads(whitelist) if whitelist is not None else None
+    blacklist = json.loads(blacklist.replace('_', ' '))
+    whitelist = json.loads(whitelist.replace('_', ' ')) if whitelist is not None else None
 
     intents_all = {intent[INTENT_ID]: intent for intent in load_jl(path.join(base_path, intents_all_fn))}
     intents = []
