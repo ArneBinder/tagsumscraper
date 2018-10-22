@@ -102,28 +102,43 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
         #s = content.replace('##', '<p><input type="checkbox" name="check">').replace('||', '</p>')
         #s = content.replace('##', '<p><span class="sentence">').replace('||', '</span></p>')
     elif format_as == FORMAT_PLAIN:
-        s = html.escape(content)
+        s = html.escape(content).replace('##', '').replace('||', '')
     else:
         raise ValueError('unknown "format_as": %s' % format_as)
-    # replace links with captions
-    s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', r'<a href="\1" target="_blank">\2</a> ',
-                           s)
-    # replace remaining links with captions
-    s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}} *', r'<a href="\1" target="_blank">\1</a> ', s)
-    # replace profile links (must have captions)
-    s = re.sub(r'\[LINK_PROFILE\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}}',
-                           r'<a class="profile-link" href="\1" target="_blank">\2</a>', s)
-    # replace images
-    s = re.sub(r'\[IMAGE\]{{\s*([^}]+)\s*}}', r'<img src="\1" />', s)
+
+    if format_as == FORMAT_PLAIN:
+        # replace links with captions
+        s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', r'\2 ',
+                               s)
+        # replace remaining links with captions
+        s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}} *', r'\1 ', s)
+        # replace profile links (must have captions)
+        s = re.sub(r'\[LINK_PROFILE\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}}', r'\2', s)
+        # replace images
+        s = re.sub(r'\[IMAGE\]{{\s*([^}]+)\s*}}', CAPTION_IMAGE, s)
+
+    else:
+        # replace links with captions
+        s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', r'<a href="\1" target="_blank">\2</a> ',
+                               s)
+        # replace remaining links with captions
+        s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}} *', r'<a href="\1" target="_blank">\1</a> ', s)
+        # replace profile links (must have captions)
+        s = re.sub(r'\[LINK_PROFILE\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}}',
+                               r'<a class="profile-link" href="\1" target="_blank">\2</a>', s)
+        # replace images
+        s = re.sub(r'\[IMAGE\]{{\s*([^}]+)\s*}}', r'<img src="\1" />', s)
 
     # replace quotes. That separates the list (add closing and opening ul tags)
     # remove empty blockquotes
     s = s.replace('[BLOCKQUOTE]{{}}', '')
-    if '[BLOCKQUOTE]' in s:
+    if '[BLOCKQUOTE]' in s and not format_as == FORMAT_PLAIN:
         s = re.sub(r'schrieb:\s*', 'schrieb:<br/>', s)
     # interrupt the list for blockquotes, if lists are is used
     if format_as == FORMAT_LIST:
         s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', r'</ul><blockquote>\1</blockquote><ul>', s)
+    elif format_as == FORMAT_PLAIN:
+        s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', r'\1', s)
     else:
         s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', r'<blockquote>\1</blockquote>', s)
 
@@ -161,7 +176,10 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamic_content_loaded=N
             break
         if only_intent_ids is not None and intent[INTENT_ID] not in only_intent_ids:
             continue
-        query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT], format_as=FORMAT_PLAIN))
+        if format_as == FORMAT_PLAIN:
+            query['values'].append(prepare_for_html(intent[INTENT_TEXT], format_as=FORMAT_PLAIN))
+        else:
+            query['values'].append('<div class=\"query\">%s</div>' % prepare_for_html(intent[INTENT_TEXT], format_as=FORMAT_PLAIN))
 
         current_answers_split = [(url, intent[ANSWERS_SPLIT][url]) for url in intent[ANSWERS_SPLIT]]
         answers_html = []
@@ -170,18 +188,20 @@ def intents_split_to_dynamicContent(intents, nbr_posts, dynamic_content_loaded=N
                 answer_full = intent[ANSWERS_ALL][current_url]
                 answer_splits = prepare_for_html(re.sub(r'\s*\(\d+\)\s*$', '', current_answer),
                                                  format_as=format_as)
-
-                new_answer = '<div class="answer-content">%s</div>' % answer_splits
-                question_title = '<div class="question-title">%s</div>' % answer_full[QUESTION][TITLE]
-
-                accepted_by = answer_full.get('solution_accepted_by', None)
-                accepted_by_text = answer_full.get('solution_accepted_by_text', None)
-                if accepted_by:
-                    new_answer = '<div class="answer solution"><div class="solution-header">Lösung akzeptiert von %s %s</div>%s</div>' \
-                                 % (accepted_by, accepted_by_text, new_answer)
+                if format_as == FORMAT_PLAIN:
+                    answers_html.append(answer_splits)
                 else:
-                    new_answer = '<div class="answer">%s</div>' % new_answer
-                answers_html.append(question_title + new_answer)
+                    new_answer = '<div class="answer-content">%s</div>' % answer_splits
+                    question_title = '<div class="question-title">%s</div>' % answer_full[QUESTION][TITLE]
+
+                    accepted_by = answer_full.get('solution_accepted_by', None)
+                    accepted_by_text = answer_full.get('solution_accepted_by_text', None)
+                    if accepted_by:
+                        new_answer = '<div class="answer solution"><div class="solution-header">Lösung akzeptiert von %s %s</div>%s</div>' \
+                                     % (accepted_by, accepted_by_text, new_answer)
+                    else:
+                        new_answer = '<div class="answer">%s</div>' % new_answer
+                    answers_html.append(question_title + new_answer)
             except Exception as e:
                 logging.error('intent: %s,\tanswer url: %s' % (intent[INTENT_ID], current_url))
                 raise e
@@ -259,7 +279,7 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
          summary_in_fn: ("Json file that will be used as template", 'option', 'i')='Summary.template.json',
          summary_out_fn: ("Json file that will be used as template", 'option', 'o') = 'Summary.json',
          column_split_content: ("Column in the tsv sentences file that contains the split sentences", 'option', 'c')='answers_plain_marked_relevant_NEW',
-         format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES])=FORMAT_LIST,
+         format_as: ("How to format the sentence entries", 'option', 'f', str, [FORMAT_LIST, FORMAT_PARAGRAPHS, FORMAT_CHECKBOXES, FORMAT_PLAIN])=FORMAT_LIST,
          whitelist: ("use only intents with these column values", 'option', 'w', str)=None,
          blacklist: ("exclude intents with these column values", 'option', 'b', str)='{"SEGMENTED": ["not-segmented", "", null], "Scrapen?": ["0","",null]}',
          max_intents: ('use only the first m intents', 'option', 'm', int)=None,
@@ -339,7 +359,20 @@ def main(mode: ("create one or multiple jobs", 'positional', None, str, ['single
     #print('distinct posts with link: %i' % len([url for url in answers_all if answers_all[url]['has_link']]))
 
     if mode == 'single':
-        create_single_job(intents, summary, summary_out_fn, format_as, max_intents)
+        if format_as == FORMAT_PLAIN:
+            nbr_posts = 10
+            dc = {dc_['identifier']: dc_ for dc_ in intents_split_to_dynamicContent(
+                intents, nbr_posts=nbr_posts, format_as=format_as, max_intents=max_intents)}
+
+            intents_plain = []
+            for i, intent in enumerate(intents):
+                text_plain = [dc['Post%i' % j]['values'][i] for j in range(1, nbr_posts + 1) if dc['Post%i' % j]['values'][i].strip() != '']
+                intents_plain.append({INTENT_ID: intent[INTENT_ID], 'query': dc['query']['values'][i], 'text': '\n\n'.join(text_plain)})
+            with codecs.open(summary_out_fn, 'w', encoding='utf-8') as f:
+                json.dump(intents_plain, f, ensure_ascii=False, indent=4)
+                f.flush()
+        else:
+            create_single_job(intents, summary, summary_out_fn, format_as, max_intents)
     elif mode == 'multiple':
         create_multiple_jobs(intents, summary, summary_out_fn, format_as, max_intents)
     else:
