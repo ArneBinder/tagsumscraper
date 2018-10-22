@@ -102,7 +102,8 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
         #s = content.replace('##', '<p><input type="checkbox" name="check">').replace('||', '</p>')
         #s = content.replace('##', '<p><span class="sentence">').replace('||', '</span></p>')
     elif format_as == FORMAT_PLAIN:
-        s = html.escape(content).replace('##', '').replace('||', '')
+        #s = html.escape(content).replace('##', '').replace('||', '')
+        s = content.replace('##', '').replace('||', '')
     else:
         raise ValueError('unknown "format_as": %s' % format_as)
 
@@ -146,8 +147,9 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     # TODO: get list of all emojis
     # see http://graphemica.com/%F0%9F%98%80
     #s = s.replace('🙂', '&#128578;').replace('💕', '&#128578;').replace('😀', '&#128578;')
-    for emoji in ['🙂', '💕', '😀', '😊']:
-        s = s.replace(emoji, '&#%i;' % ord(emoji))
+    if format_as != FORMAT_PLAIN:
+        for emoji in ['🙂', '💕', '😀', '😊']:
+            s = s.replace(emoji, '&#%i;' % ord(emoji))
     #s = s.replace('🙂', '').replace('💕', '').replace('😀', '')
 
     assert '}}' not in s and '{{' not in s, 'final html contains "{{" or "}}":\n%s' % s
