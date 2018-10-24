@@ -139,7 +139,8 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
     if format_as == FORMAT_LIST:
         s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', r'</ul><blockquote>\1</blockquote><ul>', s)
     elif format_as == FORMAT_PLAIN:
-        s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', r'\1', s)
+        #s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', r'\1', s)
+        s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', CAPTION_BLOCKQUOTE + ' ', s)
     else:
         s = re.sub(r'\[BLOCKQUOTE\]{{\s*([^}]+)\s*}}', r'<blockquote>\1</blockquote>', s)
 
