@@ -109,15 +109,15 @@ def prepare_for_html(content, format_as=FORMAT_LIST):
 
     if format_as == FORMAT_PLAIN:
         # replace links with captions
-        s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', r'\2 ',
-                               s)
-        # replace remaining links with captions
+        s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', r'\2 ', s)
+        #s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', CAPTION_LINK + ' ', s)
+        # replace remaining links without captions
         s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}} *', r'\1 ', s)
+        #s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}} *', CAPTION_LINK + ' ', s)
         # replace profile links (must have captions)
         s = re.sub(r'\[LINK_PROFILE\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}}', r'\2', s)
         # replace images
-        s = re.sub(r'\[IMAGE\]{{\s*([^}]+)\s*}}', CAPTION_IMAGE, s)
-
+        s = re.sub(r'\[IMAGE\]{{\s*([^}]+)\s*}}', CAPTION_IMAGE + ' ', s)
     else:
         # replace links with captions
         s = re.sub(r'\[LINK\]{{\s*([^}]+)\s*}}{{\s*([^}]+)\s*}} *', r'<a href="\1" target="_blank">\2</a> ',
