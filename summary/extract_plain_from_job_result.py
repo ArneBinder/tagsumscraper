@@ -2,7 +2,6 @@ import csv
 import json
 import re
 
-import plac
 from bs4 import BeautifulSoup
 
 COLUMN_QUERY = 'DynamicContent.query'
@@ -15,7 +14,7 @@ def html_post_to_plain(post):
     return text
 
 
-def main(tsv_in, json_out):
+def extract_plain_from_job_result(tsv_in, json_out):
     """
     Takes a Crowdee Job result tsv, gets all queries and posts and removes html annotations.
     Only sentences (marked with <div class="sentence">) that do not contain <img> tags are taken from the post columns.
@@ -35,8 +34,8 @@ def main(tsv_in, json_out):
         assert not prev_posts or posts == prev_posts, 'posts do not equal'
         html_data[query] = posts
 
-    data = [{'query': BeautifulSoup(html_query, 'html.parser').text,
-             'text': '\n\n'.join([html_post_to_plain(p) for p in html_data[html_query] if p.strip() != ''])}
+    data = [{'query': BeautifulSoup(html_query, 'html.parser').text.replace('\'\'', '\"'),
+             'text': '\n\n'.join([html_post_to_plain(p) for p in html_data[html_query] if p.strip() != '']).replace('\'\'', '\"')}
             for html_query in html_data]
 
     json.dump(data, open(json_out, 'w', encoding='utf8'), indent=4, ensure_ascii=False)
@@ -44,4 +43,4 @@ def main(tsv_in, json_out):
 
 
 if __name__ == "__main__":
-    plac.call(main)
+    import plac; plac.call(extract_plain_from_job_result)
